@@ -1,0 +1,49 @@
+name: build
+on: [push, pull_request]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup
+        run: bash setup_linux.sh
+      - name: build
+        run: cmake --build build
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup
+        run: bash setup_macos.sh
+      - name: verify SDL3
+        run: ls -la third_party/SDL3/build
+      - name: build
+        run: cmake --build build
+
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: clone third party
+        run: git clone --depth 1 https://github.com/ocornut/imgui.git third_party\imgui
+      - name: install vulkan sdk
+        run: |
+          $url = "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe"
+          Invoke-WebRequest -Uri $url -OutFile vulkan-sdk.exe
+          Start-Process -FilePath vulkan-sdk.exe -ArgumentList "--accept-licenses --default-answer --confirm-command install" -Wait
+          echo "C:\VulkanSDK\$(Get-ChildItem C:\VulkanSDK | Select-Object -Last 1 -ExpandProperty Name)\Bin" >> $env:GITHUB_PATH
+      - name: install vcpkg deps
+        run: vcpkg install sdl3:x64-windows vulkan:x64-windows glm:x64-windows glslang:x64-windows assimp:x64-windows
+        env:
+          VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+      - name: add glslang to PATH
+        run: echo "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\tools\glslang" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: configure
+        run: |
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+      - name: build
+        run: cmake --build build --config Debug

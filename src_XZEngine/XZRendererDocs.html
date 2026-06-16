@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XZRenderer — Documentation</title>
+<style>
+  :root {
+    --bg:        #0f1117;
+    --surface:   #1a1d27;
+    --border:    #2a2d3a;
+    --accent:    #7c6af7;
+    --accent2:   #4fc3f7;
+    --text:      #e2e4ed;
+    --muted:     #6b7280;
+    --green:     #4ade80;
+    --yellow:    #fbbf24;
+    --red:       #f87171;
+    --code-bg:   #13151f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* Sidebar */
+  nav {
+    width: 260px;
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 32px 0;
+    position: fixed;
+    top: 0; left: 0;
+    overflow-y: auto;
+  }
+
+  nav .logo {
+    padding: 0 24px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  nav .logo h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  nav .logo p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  nav ul { list-style: none; }
+
+  nav .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 24px 4px;
+  }
+
+  nav a {
+    display: block;
+    padding: 6px 24px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  nav a:hover {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(124, 106, 247, 0.06);
+  }
+
+  /* Main content */
+  main {
+    margin-left: 260px;
+    padding: 48px 64px;
+    max-width: 960px;
+    width: 100%;
+  }
+
+  /* Sections */
+  section { margin-bottom: 64px; }
+
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 28px 0 8px;
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--yellow);
+    margin: 20px 0 6px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+  }
+
+  p { margin-bottom: 12px; color: var(--text); }
+
+  /* Code blocks */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    color: var(--text);
+  }
+
+  p code, li code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+    color: var(--accent2);
+  }
+
+  /* Syntax highlight */
+  .kw  { color: #c792ea; }
+  .ty  { color: #82aaff; }
+  .fn  { color: #82aaff; }
+  .st  { color: #c3e88d; }
+  .cm  { color: #546e7a; font-style: italic; }
+  .nm  { color: var(--accent2); }
+  .op  { color: #89ddff; }
+  .nu  { color: #f78c6c; }
+  .ns  { color: #ffcb6b; }
+
+  /* Method table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  td:first-child {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+
+  td:last-child { color: var(--muted); }
+
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+  }
+
+  .badge-pre  { background: rgba(251,191,36,0.15);  color: var(--yellow); }
+  .badge-post { background: rgba(79,195,247,0.15);  color: var(--accent2); }
+  .badge-init { background: rgba(124,106,247,0.15); color: var(--accent); }
+
+  /* Note box */
+  .note {
+    background: rgba(124,106,247,0.08);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    margin: 12px 0 20px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .note strong { color: var(--accent); }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, rgba(124,106,247,0.1), rgba(79,195,247,0.05));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 40px;
+  }
+
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .hero p { color: var(--muted); font-size: 16px; margin: 0; }
+
+  /* Class header */
+  .class-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 8px 0 20px;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 13px;
+  }
+
+  .class-header .ns  { color: var(--yellow); }
+  .class-header .kw  { color: #c792ea; }
+  .class-header .cn  { color: var(--accent2); font-weight: 700; font-size: 15px; }
+
+  ul.feature-list {
+    list-style: none;
+    margin: 12px 0 20px;
+  }
+
+  ul.feature-list li {
+    padding: 4px 0;
+    color: var(--muted);
+  }
+
+  ul.feature-list li::before {
+    content: "→ ";
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav>
+  <div class="logo">
+    <h1>XZRenderer</h1>
+    <p>Vulkan · SDL3 · ImGui</p>
+  </div>
+  <ul>
+    <li class="section-label">Getting Started</li>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#quickstart">Quick Start</a></li>
+    <li><a href="#frame-loop">Frame Loop</a></li>
+
+    <li class="section-label">API Reference</li>
+    <li><a href="#renderer">Renderer</a></li>
+    <li><a href="#meshobject">MeshObject</a></li>
+    <li><a href="#customshaderquad">CustomShaderQuad</a></li>
+    <li><a href="#pointlight">PointLight</a></li>
+    <li><a href="#imguilayer">ImGuiLayer</a></li>
+    <li><a href="#vertex">Vertex</a></li>
+
+    <li class="section-label">Concepts</li>
+    <li><a href="#features">Feature Support</a></li>
+    <li><a href="#shaders">Shaders</a></li>
+    <li><a href="#assets">Assets</a></li>
+  </ul>
+</nav>
+
+<!-- Main -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>XZRenderer</h1>
+    <p>A Vulkan-based 3D rendering engine built on SDL3 and ImGui. Include one header, write no Vulkan.</p>
+  </div>
+
+  <!-- Overview -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>XZRenderer wraps Vulkan, SDL3, ImGui, Assimp and stb_image behind a clean C++ API. Your application only ever includes <code>XZRenderer.hpp</code> — no Vulkan or SDL headers leak into your code.</p>
+    <ul class="feature-list">
+      <li>Blinn-Phong lighting with a single <code>PointLight</code></li>
+      <li>glTF mesh loading via Assimp</li>
+      <li>Raw vertex / index buffer meshes</li>
+      <li>Custom fragment shader overlays (<code>CustomShaderQuad</code>)</li>
+      <li>Built-in ImGui widgets for transforms, lights and camera</li>
+      <li>SDL3 callback architecture — no manual event loop</li>
+    </ul>
+  </section>
+
+  <!-- Quick Start -->
+  <section id="quickstart">
+    <h2>Quick Start</h2>
+    <p>The minimum application structure using SDL3 callbacks:</p>
+    <pre><code><span class="cm">// main.cpp — only include XZRenderer.hpp</span>
+<span class="kw">#define</span> SDL_MAIN_USE_CALLBACKS <span class="nu">1</span>
+<span class="kw">#include</span> <span class="st">&lt;SDL3/SDL_main.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;SDL3/SDL_main_impl.h&gt;</span>
+<span class="kw">#include</span> <span class="st">"XZRenderer.hpp"</span>
+
+<span class="kw">struct</span> <span class="ty">App</span> {
+    <span class="ns">XZRenderer</span>::<span class="ty">Renderer</span>    renderer;
+    <span class="ns">XZRenderer</span>::<span class="ty">MeshObject</span>* sword <span class="op">=</span> <span class="kw">nullptr</span>;
+    <span class="ns">XZRenderer</span>::<span class="ty">PointLight</span>* light <span class="op">=</span> <span class="kw">nullptr</span>;
+
+    <span class="fn">App</span>() : <span class="fn">renderer</span>(<span class="nu">800</span>, <span class="nu">600</span>, <span class="st">"My App"</span>) {}
+};
+
+<span class="kw">static void</span> <span class="fn">update_gui</span>(<span class="ns">XZRenderer</span>::<span class="ty">ImGuiLayer</span><span class="op">&amp;</span> gui, <span class="ty">App</span><span class="op">&amp;</span> app)
+{
+    gui.<span class="fn">beginWindow</span>(<span class="st">"Controls"</span>);
+    gui.<span class="fn">exposeTransformation</span>(*app.sword, <span class="st">"Sword"</span>);
+    gui.<span class="fn">exposeLight</span>(*app.light, <span class="st">"Light"</span>);
+    gui.<span class="fn">exposeCamera</span>(<span class="st">"Camera"</span>);
+    gui.<span class="fn">exposeClearColor</span>(<span class="st">"Background"</span>);
+    gui.<span class="fn">showFPS</span>();
+    gui.<span class="fn">endWindow</span>();
+}
+
+<span class="ty">SDL_AppResult</span> <span class="fn">SDL_AppInit</span>(<span class="kw">void</span>** appstate, <span class="kw">int</span> argc, <span class="kw">char</span>* argv[])
+{
+    <span class="ty">App</span>* app <span class="op">=</span> <span class="kw">new</span> <span class="ty">App</span>();
+    *appstate <span class="op">=</span> app;
+
+    app<span class="op">-&gt;</span>renderer.<span class="fn">setClearColor</span>(<span class="nu">0.1f</span>, <span class="nu">0.1f</span>, <span class="nu">0.1f</span>);
+    app<span class="op">-&gt;</span>renderer.<span class="fn">setCameraPosition</span>(<span class="nu">0.0f</span>, <span class="nu">0.0f</span>, <span class="op">-</span><span class="nu">6.0f</span>);
+    app<span class="op">-&gt;</span>renderer.<span class="fn">init</span>();
+
+    app<span class="op">-&gt;</span>sword <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createMeshObject</span>(
+        <span class="st">"assets/sword.glb"</span>, <span class="st">"assets/sword.jpg"</span>);
+    app<span class="op">-&gt;</span>sword<span class="op">-&gt;</span><span class="fn">setPosition</span>(<span class="nu">0.0f</span>, <span class="nu">0.0f</span>, <span class="nu">0.0f</span>);
+
+    app<span class="op">-&gt;</span>light <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createPointLight</span>();
+    app<span class="op">-&gt;</span>light<span class="op">-&gt;</span><span class="fn">setPosition</span>(<span class="nu">2.0f</span>, <span class="nu">2.0f</span>, <span class="op">-</span><span class="nu">2.0f</span>);
+
+    <span class="kw">return</span> SDL_APP_CONTINUE;
+}
+
+<span class="ty">SDL_AppResult</span> <span class="fn">SDL_AppEvent</span>(<span class="kw">void</span>* appstate, <span class="ty">SDL_Event</span>* event)
+{
+    <span class="ty">App</span>* app <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="ty">App</span>*<span class="op">&gt;</span>(appstate);
+    <span class="kw">if</span> (app<span class="op">-&gt;</span>renderer.<span class="fn">handleEvent</span>(event)) <span class="kw">return</span> SDL_APP_SUCCESS;
+    <span class="kw">return</span> SDL_APP_CONTINUE;
+}
+
+<span class="ty">SDL_AppResult</span> <span class="fn">SDL_AppIterate</span>(<span class="kw">void</span>* appstate)
+{
+    <span class="ty">App</span>* app <span class="op">=</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="ty">App</span>*<span class="op">&gt;</span>(appstate);
+    <span class="ns">XZRenderer</span>::<span class="ty">Renderer</span><span class="op">&amp;</span> renderer <span class="op">=</span> app<span class="op">-&gt;</span>renderer;
+    <span class="kw">if</span> (<span class="op">!</span>renderer.<span class="fn">beginFrame</span>()) <span class="kw">return</span> SDL_APP_SUCCESS;
+    <span class="fn">update_gui</span>(renderer.<span class="fn">getGui</span>(), *app);
+    renderer.<span class="fn">endFrame</span>();
+    <span class="kw">return</span> SDL_APP_CONTINUE;
+}
+
+<span class="kw">void</span> <span class="fn">SDL_AppQuit</span>(<span class="kw">void</span>* appstate, <span class="ty">SDL_AppResult</span> result)
+{
+    <span class="kw">delete</span> <span class="kw">static_cast</span><span class="op">&lt;</span><span class="ty">App</span>*<span class="op">&gt;</span>(appstate);
+}</code></pre>
+  </section>
+
+  <!-- Frame Loop -->
+  <section id="frame-loop">
+    <h2>Frame Loop</h2>
+    <p>SDL3 drives the main loop via callbacks. XZRenderer fits into this naturally:</p>
+    <pre><code><span class="cm">// SDL calls these in order every frame:</span>
+SDL_AppEvent    <span class="cm">→ forward to renderer.handleEvent()</span>
+SDL_AppIterate  <span class="cm">→ beginFrame() ... ImGui calls ... endFrame()</span></code></pre>
+
+    <div class="note">
+      <strong>Important:</strong> All <code>ImGuiLayer</code> calls must happen between <code>beginFrame()</code> and <code>endFrame()</code>.
+    </div>
+
+    <h3>beginFrame()</h3>
+    <p>Acquires the next swapchain image, updates all uniform buffers (MVP matrices, light position, camera), and begins the ImGui frame. Returns <code>false</code> when the window is closed.</p>
+
+    <h3>endFrame()</h3>
+    <p>Renders ImGui, submits all command buffers to the GPU, and presents the frame.</p>
+  </section>
+
+  <!-- Renderer -->
+  <section id="renderer">
+    <h2>Renderer</h2>
+    <div class="class-header">
+      <span class="kw">class</span> <span class="cn">Renderer</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>The top-level engine entry point. One instance per application. Non-copyable, non-movable.</p>
+
+    <h3>Constructor</h3>
+    <pre><code><span class="kw">explicit</span> <span class="fn">Renderer</span>(<span class="ty">uint32_t</span> width, <span class="ty">uint32_t</span> height, <span class="kw">const</span> <span class="ty">std::string</span><span class="op">&amp;</span> title);</code></pre>
+    <p>Width, height, and window title are required at construction time.</p>
+    <pre><code><span class="cm">// In your App struct:</span>
+<span class="ty">App</span>() : <span class="fn">renderer</span>(<span class="nu">800</span>, <span class="nu">600</span>, <span class="st">"My Window"</span>) {}</code></pre>
+
+    <h3>Configuration <span class="badge badge-pre">call before init()</span></h3>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td>setClearColor(r, g, b, a=1)</td><td>Background colour (0–1 range)</td></tr>
+      <tr><td>setCameraPosition(x, y, z)</td><td>Camera eye position in world space</td></tr>
+      <tr><td>setCameraTarget(x, y, z)</td><td>Point the camera looks at (default: origin)</td></tr>
+      <tr><td>enableLogging(bool)</td><td>Print internal Vulkan call log to console</td></tr>
+    </table>
+
+    <h3>Initialisation <span class="badge badge-init">call once</span></h3>
+    <pre><code>app<span class="op">-&gt;</span>renderer.<span class="fn">init</span>();</code></pre>
+    <p>Initialises SDL3, Vulkan, and ImGui. Must be called before creating any scene objects.</p>
+
+    <h3>Scene Objects <span class="badge badge-post">call after init()</span></h3>
+    <table>
+      <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+      <tr><td>createMeshObject()</td><td>MeshObject&amp;</td><td>Create an empty mesh object, then call loadFromGLTF() or loadFromVertices()</td></tr>
+      <tr><td>createMeshObject(mesh_path, texture_path)</td><td>MeshObject&amp;</td><td>Create and load a glTF mesh in one call</td></tr>
+      <tr><td>createMeshObject(vertices, indices, texture_path)</td><td>MeshObject&amp;</td><td>Create and load raw vertex data in one call</td></tr>
+      <tr><td>createCustomShaderQuad(frag_spv)</td><td>CustomShaderQuad&amp;</td><td>Create a unit quad with a custom fragment shader</td></tr>
+      <tr><td>createPointLight()</td><td>PointLight&amp;</td><td>Create a point light</td></tr>
+    </table>
+
+    <div class="note">
+      <strong>Ownership:</strong> The Renderer owns all created objects. The returned references remain valid for the lifetime of the Renderer.
+    </div>
+
+    <h3>Frame Loop</h3>
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td>beginFrame()</td><td>Start a frame. Returns false if window was closed.</td></tr>
+      <tr><td>endFrame()</td><td>Submit and present the frame.</td></tr>
+      <tr><td>handleEvent(void*)</td><td>Forward SDL_Event* from SDL_AppEvent. Returns true on quit.</td></tr>
+      <tr><td>getGui()</td><td>Returns the ImGuiLayer for this frame.</td></tr>
+    </table>
+  </section>
+
+  <!-- MeshObject -->
+  <section id="meshobject">
+    <h2>MeshObject</h2>
+    <div class="class-header">
+      <span class="kw">class</span> <span class="cn">MeshObject</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>A textured 3D object rendered with Blinn-Phong lighting. Always created via <code>Renderer::createMeshObject()</code> — never constructed directly.</p>
+
+    <h3>renderer.createMeshObject(mesh_path, texture_path)</h3>
+    <p>Load a glTF mesh with a separately supplied texture file. Texture is not read from the glTF embed.</p>
+    <pre><code><span class="ns">XZRenderer</span>::<span class="ty">MeshObject</span>* sword <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createMeshObject</span>(
+    ASSET_OUTPUT_DIR <span class="st">"sword_0.glb"</span>,
+    ASSET_OUTPUT_DIR <span class="st">"sword_0.jpg"</span>
+);</code></pre>
+
+    <h3>renderer.createMeshObject(vertices, indices, texture_path)</h3>
+    <p>Load from raw vertex and index data with a texture file. Use <code>XZRenderer::Vertex</code> to supply positions, UVs and normals.</p>
+    <pre><code><span class="ns">XZRenderer</span>::<span class="ty">MeshObject</span>* tetra <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createMeshObject</span>(
+    <span class="ty">std::vector</span><span class="op">&lt;</span><span class="ns">XZRenderer</span>::<span class="ty">Vertex</span><span class="op">&gt;</span>(vertices, vertices <span class="op">+</span> <span class="nu">12</span>),
+    <span class="ty">std::vector</span><span class="op">&lt;</span><span class="ty">uint32_t</span><span class="op">&gt;</span>(indices, indices <span class="op">+</span> <span class="nu">12</span>),
+    ASSET_OUTPUT_DIR <span class="st">"texture.png"</span>
+);</code></pre>
+
+    <h3>setPosition(x, y, z)</h3>
+    <p>Set the world position of the mesh object.</p>
+
+    <h3>setRotation(x, y, z)</h3>
+    <p>Set rotation in degrees around the X, Y, Z axes.</p>
+
+    <h3>setScale(uniform)</h3>
+    <p>Uniform scale on all axes.</p>
+
+    <h3>setScale(x, y, z)</h3>
+    <p>Per-axis scale.</p>
+
+    <h3>getPosition() / getRotation() / getScale()</h3>
+    <p>Read-only accessors returning <code>const glm::vec3&amp;</code>.</p>
+  </section>
+
+  <!-- CustomShaderQuad -->
+  <section id="customshaderquad">
+    <h2>CustomShaderQuad</h2>
+    <div class="class-header">
+      <span class="kw">class</span> <span class="cn">CustomShaderQuad</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>A flat unit quad rendered with a user-supplied compiled fragment shader (<code>.spv</code>). The quad geometry is built-in — a unit square in the XY plane. Useful for procedural overlays such as faces, decals and effects.</p>
+
+    <h3>renderer.createCustomShaderQuad(frag_spv_path)</h3>
+    <p>Create a quad with a custom fragment shader. Supply the path to a compiled <code>.spv</code> fragment shader.</p>
+    <pre><code><span class="ns">XZRenderer</span>::<span class="ty">CustomShaderQuad</span>* face <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createCustomShaderQuad</span>(SHADER_OUTPUT_DIR <span class="st">"face.spv"</span>);
+face<span class="op">-&gt;</span><span class="fn">setPosition</span>(<span class="nu">-2.0f</span>, <span class="nu">0.0f</span>, <span class="nu">0.0f</span>);
+face<span class="op">-&gt;</span><span class="fn">setScale</span>(<span class="nu">1.5f</span>, <span class="nu">2.0f</span>);</code></pre>
+
+    <h3>setPosition(x, y, z)</h3>
+    <p>Set the world position of the quad.</p>
+
+    <h3>setRotation(x, y, z)</h3>
+    <p>Set rotation in degrees around the X, Y, Z axes.</p>
+
+    <h3>setScale(x, y)</h3>
+    <p>Set width and height. Z stays 1 since the quad is flat.</p>
+
+    <h3>setScale(x, y, z) / setScale(glm::vec3)</h3>
+    <p>Full per-axis scale if needed.</p>
+
+    <div class="note">
+      <strong>Fragment shader:</strong> The quad uses alpha blending. Return <code>alpha = 0</code> for transparent areas. The vertex shader outputs <code>outUV</code> at <code>location 0</code>.
+    </div>
+  </section>
+
+  <!-- PointLight -->
+  <section id="pointlight">
+    <h2>PointLight</h2>
+    <div class="class-header">
+      <span class="kw">class</span> <span class="cn">PointLight</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>A positional light in the scene. Affects all <code>MeshObject</code> instances via Blinn-Phong lighting. Only the first <code>PointLight</code> is currently used.</p>
+
+    <h3>renderer.createPointLight()</h3>
+    <p>Create a point light. Returns a reference owned by the Renderer.</p>
+    <pre><code><span class="ns">XZRenderer</span>::<span class="ty">PointLight</span>* light <span class="op">=</span> <span class="op">&amp;</span>app<span class="op">-&gt;</span>renderer.<span class="fn">createPointLight</span>();
+light<span class="op">-&gt;</span><span class="fn">setPosition</span>(<span class="nu">2.0f</span>, <span class="nu">2.0f</span>, <span class="op">-</span><span class="nu">2.0f</span>);</code></pre>
+
+    <h3>setPosition(x, y, z)</h3>
+    <p>Set the light position in world space.</p>
+
+    <h3>getPosition()</h3>
+    <p>Returns <code>const glm::vec3&amp;</code>.</p>
+  </section>
+
+  <!-- ImGuiLayer -->
+  <section id="imguilayer">
+    <h2>ImGuiLayer</h2>
+    <div class="class-header">
+      <span class="kw">class</span> <span class="cn">ImGuiLayer</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>Exposes engine objects as ImGui widgets. Obtain via <code>renderer.getGui()</code>. All calls must be placed between <code>beginFrame()</code> and <code>endFrame()</code>.</p>
+
+    <div class="note">
+      <strong>Note:</strong> ImGui is fully contained inside XZRenderer. You never include ImGui headers in your own code.
+    </div>
+
+    <h3>renderer.getGui()</h3>
+    <p>Returns a reference to the <code>ImGuiLayer</code>. Call this inside <code>SDL_AppIterate</code> after <code>beginFrame()</code>.</p>
+
+    <h3>beginWindow(title)</h3>
+    <p>Open an ImGui window. Always pair with <code>endWindow()</code>.</p>
+
+    <h3>endWindow()</h3>
+    <p>Close the current ImGui window.</p>
+
+    <h3>separator()</h3>
+    <p>Draw a horizontal separator line inside a window.</p>
+
+    <h3>exposeTransformation(obj, label)</h3>
+    <p>Position / Rotation / Scale sliders for a <code>MeshObject</code> or <code>CustomShaderQuad</code>. Click the label to collapse.</p>
+
+    <h3>exposeLight(light, label)</h3>
+    <p>Position sliders for a <code>PointLight</code>.</p>
+
+    <h3>exposeCamera(label)</h3>
+    <p>Camera position and look-at target sliders.</p>
+
+    <h3>exposeClearColor(label)</h3>
+    <p>RGBA colour picker for the background clear colour.</p>
+
+    <h3>text(str)</h3>
+    <p>Display a plain text label inside the window.</p>
+
+    <h3>showFPS()</h3>
+    <p>Display current frames per second.</p>
+
+    <pre><code><span class="ns">XZRenderer</span>::<span class="ty">ImGuiLayer</span><span class="op">&amp;</span> gui <span class="op">=</span> renderer.<span class="fn">getGui</span>();
+gui.<span class="fn">beginWindow</span>(<span class="st">"Scene"</span>);
+gui.<span class="fn">exposeTransformation</span>(*app.sword, <span class="st">"Sword"</span>);
+gui.<span class="fn">exposeLight</span>(*app.light,  <span class="st">"Light"</span>);
+gui.<span class="fn">exposeCamera</span>(<span class="st">"Camera"</span>);
+gui.<span class="fn">exposeClearColor</span>(<span class="st">"Background"</span>);
+gui.<span class="fn">showFPS</span>();
+gui.<span class="fn">endWindow</span>();</code></pre>
+  </section>
+
+  <!-- Vertex -->
+  <section id="vertex">
+    <h2>Vertex</h2>
+    <div class="class-header">
+      <span class="kw">struct</span> <span class="cn">Vertex</span> <span class="cm">// namespace XZRenderer</span>
+    </div>
+    <p>The vertex format used with <code>loadFromVertices()</code>.</p>
+    <pre><code><span class="kw">struct</span> <span class="ty">Vertex</span> {
+    <span class="ty">glm::vec3</span> position;
+    <span class="ty">glm::vec2</span> uv;
+    <span class="ty">glm::vec3</span> normal;
+};</code></pre>
+    <pre><code><span class="kw">static const</span> <span class="ns">XZRenderer</span>::<span class="ty">Vertex</span> vertices[] <span class="op">=</span> {
+    <span class="cm">// position              uv           normal</span>
+    {{ <span class="nu">0.0f</span>,  <span class="nu">1.0f</span>,  <span class="nu">0.0f</span>}, {<span class="nu">0.5f</span>, <span class="nu">0.0f</span>}, {<span class="nu">0.0f</span>, <span class="nu">1.0f</span>, <span class="nu">0.0f</span>}},
+    {{ <span class="nu">0.0f</span>, <span class="op">-</span><span class="nu">1.0f</span>,  <span class="nu">1.15f</span>}, {<span class="nu">0.0f</span>, <span class="nu">1.0f</span>}, {<span class="nu">0.0f</span>, <span class="op">-</span><span class="nu">1.0f</span>, <span class="nu">0.0f</span>}},
+};</code></pre>
+  </section>
+
+  <!-- Feature Support -->
+  <section id="features">
+    <h2>Feature Support</h2>
+    <p>What you can and cannot render with the current version of XZRenderer.</p>
+
+    <style>
+      .feature-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+      .feature-table th { text-align: left; padding: 10px 16px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+      .feature-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+      .feature-table td:first-child { color: var(--text); font-weight: 500; }
+      .feature-table td:nth-child(2) { color: var(--muted); font-size: 13px; }
+      .feature-table tr:hover td { background: rgba(255,255,255,0.02); }
+      .check { color: #4ade80; font-size: 18px; }
+      .cross { color: #f87171; font-size: 18px; }
+      .partial { color: #fbbf24; font-size: 18px; }
+      .category-row td { background: rgba(124,106,247,0.06); color: var(--accent); font-weight: 700; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+      .legend { display: flex; gap: 24px; margin: 0 0 20px; font-size: 13px; color: var(--muted); }
+      .legend span { display: flex; align-items: center; gap: 6px; }
+    </style>
+
+    <div class="legend">
+      <span><span class="check">✓</span> Supported</span>
+      <span><span class="cross">✗</span> Not supported</span>
+      <span><span class="partial">◑</span> Partial</span>
+    </div>
+
+    <table class="feature-table">
+      <tr><th>Feature</th><th>Notes</th><th style="width:60px;text-align:center">Status</th></tr>
+
+      <tr class="category-row"><td colspan="3">Geometry</td></tr>
+      <tr><td>glTF / GLB mesh loading</td><td>Via Assimp. Supports multi-mesh files.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Raw vertex / index buffers</td><td>Supply your own positions, UVs and normals.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Skeletal animation</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Morph targets / blend shapes</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Instanced rendering</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+
+      <tr class="category-row"><td colspan="3">Texturing</td></tr>
+      <tr><td>Diffuse texture (JPG / PNG)</td><td>Loaded via stb_image. Converted to RGBA internally.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>UV mapping</td><td>UVs supplied per vertex or from glTF.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Texture atlas</td><td>Supported — pack multiple materials into one texture.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Normal maps</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>PBR (roughness / metallic)</td><td>Not yet implemented. Uses Blinn-Phong only.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Mipmaps</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Cubemap / skybox</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+
+      <tr class="category-row"><td colspan="3">Lighting</td></tr>
+      <tr><td>Point light</td><td>One point light supported. Blinn-Phong shading.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Multiple lights</td><td>Only the first PointLight is used currently.</td><td style="text-align:center"><span class="partial">◑</span></td></tr>
+      <tr><td>Directional light</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Spot light</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Shadows</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Ambient occlusion</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+
+      <tr class="category-row"><td colspan="3">Overlays &amp; Effects</td></tr>
+      <tr><td>Custom shader quad</td><td>Alpha-blended flat quad with user-supplied fragment shader.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Procedural fragment shaders</td><td>Full GLSL supported in custom quad fragment shader.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Post-processing</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Particle systems</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Transparency / order-independent</td><td>Alpha blend supported on CustomShaderQuad only.</td><td style="text-align:center"><span class="partial">◑</span></td></tr>
+
+      <tr class="category-row"><td colspan="3">Camera</td></tr>
+      <tr><td>Perspective camera</td><td>45° FOV, adjustable position and look-at target.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Orthographic camera</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+      <tr><td>Free-look / orbit camera</td><td>Adjustable via ImGui sliders.</td><td style="text-align:center"><span class="partial">◑</span></td></tr>
+
+      <tr class="category-row"><td colspan="3">Platform</td></tr>
+      <tr><td>Linux</td><td>Tested. X11 + Vulkan.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>macOS</td><td>MoltenVK / Metal backend.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>Windows</td><td>Win32 + Vulkan.</td><td style="text-align:center"><span class="check">✓</span></td></tr>
+      <tr><td>iOS / Android</td><td>Not yet implemented.</td><td style="text-align:center"><span class="cross">✗</span></td></tr>
+    </table>
+  </section>
+
+  <!-- Shaders -->
+  <section id="shaders">
+    <h2>Shaders</h2>
+    <p>XZRenderer expects compiled SPIR-V shaders in the build output directory.</p>
+    <table>
+      <tr><th>File</th><th>Used by</th><th>Description</th></tr>
+      <tr><td>vert.spv</td><td>MeshObject</td><td>Vertex shader — position, uv, normal. Outputs world position and transformed normal.</td></tr>
+      <tr><td>frag.spv</td><td>MeshObject</td><td>Fragment shader — Blinn-Phong lighting with texture sampling.</td></tr>
+      <tr><td>quad.spv</td><td>CustomShaderQuad</td><td>Vertex shader — position and uv only. No normal.</td></tr>
+      <tr><td>face.spv (custom)</td><td>CustomShaderQuad</td><td>User-supplied fragment shader. Receives outUV at location 0.</td></tr>
+    </table>
+
+    <h3>Compiling Shaders</h3>
+    <pre><code>glslangValidator -V -S vert shader.vert -o vert.spv
+glslangValidator -V -S frag shader.frag -o frag.spv
+glslangValidator -V -S vert quad.vert   -o quad.spv
+glslangValidator -V -S frag face.frag   -o face.spv</code></pre>
+  </section>
+
+  <!-- Assets -->
+  <section id="assets">
+    <h2>Assets</h2>
+    <p>Asset paths are passed directly to the API. Use <code>ASSET_OUTPUT_DIR</code> (defined by CMake) to prefix paths relative to the build output:</p>
+    <pre><code>app<span class="op">-&gt;</span>sword<span class="op">-&gt;</span><span class="fn">loadFromGLTF</span>(
+    ASSET_OUTPUT_DIR <span class="st">"sword_0.glb"</span>,
+    ASSET_OUTPUT_DIR <span class="st">"sword_0.jpg"</span>
+);</code></pre>
+
+    <h3>Supported Formats</h3>
+    <table>
+      <tr><th>Type</th><th>Format</th><th>Notes</th></tr>
+      <tr><td>Mesh</td><td>.glb</td><td>glTF binary. Normals generated automatically if missing.</td></tr>
+      <tr><td>Texture</td><td>.jpg .png</td><td>Loaded via stb_image. Converted to RGBA internally.</td></tr>
+    </table>
+  </section>
+
+</main>
+</body>
+</html>
