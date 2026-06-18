@@ -5,16 +5,34 @@ digraph call_graph {
     node  [fontname="Helvetica", fontsize=12, style=filled]
     edge  [fontname="Helvetica", fontsize=10]
 
-    MyApp    [label="MyApp", shape=box, fillcolor="#d5bdfc"]
-
-    DuelGameplay    [label="DuelGameplay", shape=box, fillcolor="#d5bdfc"]
-    SwordAnim    [label="SwordAnim", shape=box, fillcolor="#d5bdfc"]
-    CharAnim    [label="CharAnim", shape=box, fillcolor="#d5bdfc"]
-    FaceAnim    [label="FaceAnim", shape=box, fillcolor="#d5bdfc"]
     Renderer   [label="Renderer", shape=box, fillcolor="#d5bdfc"]
-
-    DuelGameplay -> SwordAnim [label="Player State\nEnemy State"];
-    DuelGameplay -> CharAnim [label="Player State\nEnemy State"];
+    subgraph cluster_App {
+        label="Your App"
+        style=filled
+        fillcolor="#f5f0ff"
+        MyApp    [label="MyApp", shape=box, fillcolor="#d5bdfc"]
+    }
+    subgraph cluster_Gameplay {
+        label="Gameplay"
+        style=filled
+        fillcolor="#f5f0ff"
+        DuelPlay    [label="DuelPlay", shape=box, fillcolor="#d5bdfc"]
+        EnemyAI    [label="EnemyAI", shape=box, fillcolor="#d5bdfc"]
+        EnemyAI -> DuelPlay
+    }
+    subgraph cluster_Animation {
+        label="Animation"
+        style=filled
+        fillcolor="#f5f0ff"
+        SwordAnim    [label="SwordAnim", shape=box, fillcolor="#d5bdfc"]
+        CharAnim    [label="CharAnim", shape=box, fillcolor="#d5bdfc"]
+        FaceAnim    [label="FaceAnim", shape=box, fillcolor="#d5bdfc"]
+    }
+    
+    MyApp -> DuelPlay [label="Controller Input"];
+    DuelPlay -> SwordAnim [label="Player State\nEnemy State"];
+    DuelPlay -> CharAnim [label="Player State\nEnemy State"];
     SwordAnim -> Renderer [label="Sword Transformation"];
     CharAnim -> Renderer [label="Char Transformation"];
+    FaceAnim -> Renderer [label="Char Transformation"];
 }

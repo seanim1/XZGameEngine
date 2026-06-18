@@ -5,7 +5,9 @@
 
 #include "XZRenderer.hpp"
 #include "XZDuelAnim.hpp"
+#include "XZDuelPlay.hpp"
 
+#include <iostream>
 // Tetrahedron vertex data — flat-shaded normals baked in
 static const XZRenderer::Vertex tetra_vertices[] = {
     {{ 0.0f,  1.0f,  0.0f},    {0.5f, 0.0f}, {-0.8321f,  0.2773f,  0.4804f}},
@@ -37,33 +39,10 @@ struct App {
     XZRenderer::PointLight*       light = nullptr;
 
     XZDuelAnim::SwordAnim sword_anim{{0.0f, 90.0f, 270.0f}, {0.3f, 0.3f, 0.3f}};
+    XZDuelPlay::DuelPlay  duel_play;
+
     App() : renderer(1920, 1080, "XZRenderer") {}
 };
-
-static void update_gui(XZRenderer::ImGuiLayer& gui, App& app)
-{
-    gui.beginWindow("Scene");
-    gui.text("Press T to toggle GUI");
-    gui.exposeCamera("Camera");
-    gui.separator();
-    gui.exposeTransformation(*app.playerMesh, "Tetrahedron");
-    gui.separator();
-    gui.exposeTransformation(*app.playerFace,  "Face");
-    gui.separator();
-    gui.exposeTransformation(*app.enemySword, "Sword");
-    gui.separator();
-    gui.exposeLight(*app.light,          "Light");
-    gui.separator();
-    gui.exposeClearColor("Background");
-    if (gui.exposeButton("Enemy Attack")) {
-        app.sword_anim.setState(XZDuelAnim::EnemySwordState::Attacking);
-    }
-    if (gui.exposeButton("Player Block")) {
-        app.sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
-    }
-    gui.showFPS();
-    gui.endWindow();
-}
 
 // ============================================================
 //  SDL3 app callbacks
@@ -119,7 +98,38 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 {
     App* app = static_cast<App*>(appstate);
     if (app->renderer.handleEvent(event)) return SDL_APP_SUCCESS;
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.button == SDL_BUTTON_RIGHT)
+        app->duel_play.onMouseDown();
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event->button.button == SDL_BUTTON_RIGHT)
+        app->duel_play.onMouseUp();
+
     return SDL_APP_CONTINUE;
+}
+
+static void update_gui(XZRenderer::ImGuiLayer& gui, App& app)
+{
+    gui.beginWindow("Scene");
+    gui.text("Press T to toggle GUI");
+    gui.exposeCamera("Camera");
+    gui.separator();
+    gui.exposeTransformation(*app.playerMesh, "Tetrahedron");
+    gui.separator();
+    gui.exposeTransformation(*app.playerFace,  "Face");
+    gui.separator();
+    gui.exposeTransformation(*app.enemySword, "Sword");
+    gui.separator();
+    gui.exposeLight(*app.light,          "Light");
+    gui.separator();
+    gui.exposeClearColor("Background");
+    if (gui.exposeButton("Enemy Attack")) {
+        app.duel_play.setEnemyState(XZDuelPlay::EnemyState::AttackPrep);
+    }
+    gui.showFPS();
+    gui.endWindow();
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate)
@@ -127,10 +137,57 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     App* app = static_cast<App*>(appstate);
     XZRenderer::Renderer& r = app->renderer;
 
+    // delta time
     static float last_time = 0.0f;
     float current_time = (float)SDL_GetTicks() / 1000.0f;
     float delta_time   = current_time - last_time;
     last_time          = current_time;
+
+    // Enemy AI
+    static float enemy_attack_timer = 0.0f;
+    constexpr float enemy_attack_interval = 2.0f;
+    enemy_attack_timer += delta_time;
+    if (enemy_attack_timer >= enemy_attack_interval) {
+        enemy_attack_timer = 0.0f;
+        app->duel_play.setEnemyState(XZDuelPlay::EnemyState::AttackPrep);
+    }
+
+    // Gameplay
+    app->duel_play.update(delta_time);  
+    switch (app->duel_play.getPlayerState()) {
+    case XZDuelPlay::PlayerState::Parry:
+        app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Parrying);
+        break;
+    case XZDuelPlay::PlayerState::Block:
+        app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
+        break;
+    case XZDuelPlay::PlayerState::Idle:
+        app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Idle);
+        break;
+    }
+    switch (app->duel_play.getEnemyState()) {
+    case XZDuelPlay::EnemyState::AttackPrep:
+        app->sword_anim.setState(XZDuelAnim::EnemySwordState::AttackPreparing);
+        break;
+    case XZDuelPlay::EnemyState::Attack:
+        app->sword_anim.setState(XZDuelAnim::EnemySwordState::Attacking);
+        break;
+    case XZDuelPlay::EnemyState::Idle:
+        app->sword_anim.setState(XZDuelAnim::EnemySwordState::Idle);
+        break;
+    }
+
+    if (app->duel_play.checkParry()) {
+        app->duel_play.onParry();
+        // PostProcess — not yet implemented
+        // XZRenderer::PostProcess::radialBlur();
+        // XZRenderer::PostProcess::screenShake();
+        // XZRenderer::PostProcess::chromaticAberration();
+        // XZRenderer::PostProcess::bloom();
+
+        // Particles — not yet implemented
+        // XZParticleSystem::emitSparks(app->playerSword->getPosition());
+    };
 
     XZDuelAnim::Transformation sword_transform;
 
@@ -138,13 +195,11 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     app->enemySword->setPosition(sword_transform.position);
     app->enemySword->setRotation(sword_transform.rotation);
     app->enemySword->setScale(sword_transform.scale);
-        std::cout << "Position: " << (sword_transform.scale).y << std::endl;
 
     sword_transform = app->sword_anim.getPlayerSwordTransformation(app->playerMesh->getPosition(), app->playerMesh->getRotation(), delta_time);
     app->playerSword->setPosition(sword_transform.position);
     app->playerSword->setRotation(sword_transform.rotation);
     app->playerSword->setScale(sword_transform.scale);
-        std::cout << "Position: " << (sword_transform.scale).y << std::endl;
 
     if (!r.beginFrame()) return SDL_APP_SUCCESS;
 

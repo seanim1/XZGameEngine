@@ -27,6 +27,7 @@ namespace XZDuelAnim {
 
 enum class EnemySwordState {
     Idle,
+    AttackPreparing,
     Attacking
 };
 
@@ -37,6 +38,7 @@ enum class EnemyBodyState {
 
 enum class PlayerSwordState {
     Idle,
+    Parrying,
     Blocking
 };
 
@@ -66,14 +68,30 @@ public:
     }
     template<typename StateType>
     void setState(StateType state) {
-        if constexpr (std::is_same_v<StateType, EnemySwordState>)
-            m_enemy_sword_state = state;
-        else if constexpr (std::is_same_v<StateType, EnemyBodyState>)
-            m_enemy_body_state = state;
-        else if constexpr (std::is_same_v<StateType, PlayerSwordState>)
-            m_player_sword_state = state;
-        else if constexpr (std::is_same_v<StateType, PlayerBodyState>)
-            m_player_body_state = state;
+        if constexpr (std::is_same_v<StateType, EnemySwordState>) {
+            if (m_enemy_sword_state != state) {
+                m_enemy_sword_state    = state;
+                m_enemyAnimPlaytimeSec = 0.0f;
+            }
+        }
+        else if constexpr (std::is_same_v<StateType, EnemyBodyState>) {
+            if (m_enemy_body_state != state) {
+                m_enemy_body_state         = state;
+                m_enemyBodyAnimPlaytimeSec = 0.0f;
+            }
+        }
+        else if constexpr (std::is_same_v<StateType, PlayerSwordState>) {
+            if (m_player_sword_state != state) {
+                m_player_sword_state    = state;
+                m_playerAnimPlaytimeSec = 0.0f;
+            }
+        }
+        else if constexpr (std::is_same_v<StateType, PlayerBodyState>) {
+            if (m_player_body_state != state) {
+                m_player_body_state         = state;
+                m_playerBodyAnimPlaytimeSec = 0.0f;
+            }
+        }
     }
 
     template<typename StateType>
@@ -91,19 +109,22 @@ public:
     Transformation getEnemySwordTransformation(glm::vec3 centerPosition, glm::vec3 centerRotation, float deltaTime) {
         m_enemy_sword_trans.position = centerPosition;
         m_enemy_sword_trans.rotation = centerRotation;
-        if (m_enemy_sword_state == EnemySwordState::Attacking) {
-            static float EnemySwordAttackDuration = 1.0f;
-            constexpr float animFreq = 8.0f;
-            glm::vec3 pos_offset = { glm::sin(animFreq * m_enemyAnimPlaytimeSec), 0.0f, glm::cos(animFreq * m_enemyAnimPlaytimeSec)};
-            m_enemy_sword_trans.position = centerPosition + 2.0f * pos_offset;
-
-            float angleRadians = std::atan2(pos_offset.x, pos_offset.z);
-            float angleDegrees = glm::degrees(angleRadians);
-            m_enemy_sword_trans.rotation = centerRotation + glm::vec3(0.0f, angleDegrees + 90.f, 0.0f);
-        } else {
+        switch (m_enemy_sword_state) {
+        case EnemySwordState::AttackPreparing:
+            m_enemy_sword_trans.position = centerPosition + 2.0f * getRight(centerRotation);
+            m_enemy_sword_trans.rotation = {0.0f, 160.0f, 0.0f};
+            break;
+        case EnemySwordState::Attacking:
+        {
+            m_enemy_sword_trans.position = centerPosition + 2.0f * getForward(centerRotation);
+            m_enemy_sword_trans.rotation = {0.0f, 290.0f, 0.0f};
+            break;
+        }
+        case EnemySwordState::Idle:
             m_enemy_sword_trans.position = centerPosition + 2.0f * getRight(centerRotation);
             m_enemy_sword_trans.position.y = 0.1f * glm::cos(7.0f * m_enemyAnimPlaytimeSec);
             m_enemy_sword_trans.rotation = {0.0f, 90.0f, 270.0f};
+            break;
         }
         m_enemyAnimPlaytimeSec += deltaTime;
         return m_enemy_sword_trans;
@@ -111,13 +132,20 @@ public:
     Transformation getPlayerSwordTransformation(glm::vec3 centerPosition, glm::vec3 centerRotation, float deltaTime) {
         m_player_sword_trans.position = centerPosition;
         m_player_sword_trans.rotation = centerRotation;
-        if (m_player_sword_state == PlayerSwordState::Blocking) {
+        switch (m_player_sword_state) {
+        case PlayerSwordState::Parrying:
+            m_player_sword_trans.position = centerPosition + 1.0f * getForward(centerRotation) + 0.5f * getRight(centerRotation);
+            m_player_sword_trans.rotation = centerRotation + glm::vec3(90.0f, 40.f, 0.0f);
+            break;
+        case PlayerSwordState::Blocking:
             m_player_sword_trans.position = centerPosition + 1.0f * getForward(centerRotation) + 0.5f * getRight(centerRotation);
             m_player_sword_trans.rotation = centerRotation + glm::vec3(90.0f, 60.f, 0.0f);
-        } else {
+            break;
+        case PlayerSwordState::Idle:
             m_player_sword_trans.position = centerPosition + 2.0f * getRight(centerRotation);
             m_player_sword_trans.position.y = 0.1f * glm::cos(7.0f * m_playerAnimPlaytimeSec);
             m_player_sword_trans.rotation = {0.0f, 90.0f, 270.0f};
+            break;
         }
         m_playerAnimPlaytimeSec += deltaTime;
         return m_player_sword_trans;
@@ -130,8 +158,10 @@ private:
     PlayerBodyState  m_player_body_state  = PlayerBodyState::Idle;
     Transformation m_enemy_sword_trans;
     Transformation m_player_sword_trans;
-    float m_enemyAnimPlaytimeSec = 0.0f;
-    float m_playerAnimPlaytimeSec = 0.0f;
+    float m_enemyAnimPlaytimeSec       = 0.0f;
+    float m_enemyBodyAnimPlaytimeSec   = 0.0f;
+    float m_playerAnimPlaytimeSec      = 0.0f;
+    float m_playerBodyAnimPlaytimeSec  = 0.0f;
 };
 
 } // namespace XZDuelAnim
