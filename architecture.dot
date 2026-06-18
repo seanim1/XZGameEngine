@@ -1,0 +1,20 @@
+digraph call_graph {
+    compound=true
+    newrank=true
+    graph [rankdir=LR, splines=line, fontname="Helvetica"]
+    node  [fontname="Helvetica", fontsize=12, style=filled]
+    edge  [fontname="Helvetica", fontsize=10]
+
+    MyApp    [label="MyApp", shape=box, fillcolor="#d5bdfc"]
+
+    DuelGameplay    [label="DuelGameplay", shape=box, fillcolor="#d5bdfc"]
+    SwordAnim    [label="SwordAnim", shape=box, fillcolor="#d5bdfc"]
+    CharAnim    [label="CharAnim", shape=box, fillcolor="#d5bdfc"]
+    FaceAnim    [label="FaceAnim", shape=box, fillcolor="#d5bdfc"]
+    Renderer   [label="Renderer", shape=box, fillcolor="#d5bdfc"]
+
+    DuelGameplay -> SwordAnim [label="Player State\nEnemy State"];
+    DuelGameplay -> CharAnim [label="Player State\nEnemy State"];
+    SwordAnim -> Renderer [label="Sword Transformation"];
+    CharAnim -> Renderer [label="Char Transformation"];
+}

@@ -1232,6 +1232,9 @@ void ImGuiLayer::exposeCamera(const std::string& label) {
             renderer_impl_->camera_target = t;
     }
 }
+bool ImGuiLayer::exposeButton(const std::string& label) {
+    return ImGui::Button(label.c_str());
+}
 void ImGuiLayer::beginWindow(const std::string& t) {
     ImGui::Begin(t.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 }

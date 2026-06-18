@@ -166,6 +166,8 @@ public:
     // Checkbox for flat / smooth shading toggle
     void exposeFlatShading(MeshObject& obj, const std::string& label);
 
+    bool exposeButton(const std::string& label);  // returns true when clicked
+
     // Window management
     void beginWindow(const std::string& title);
     void endWindow();
