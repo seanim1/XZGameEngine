@@ -133,6 +133,23 @@ struct CustomShaderQuadImpl {
 };
 
 // ============================================================
+//  CustomShaderPoints3dImpl
+// ============================================================
+struct CustomShaderPoints3dImpl {
+    RendererImpl* renderer = nullptr;
+
+    GpuBuffer vertex_buffer;
+    uint32_t  max_count   = 500;
+    uint32_t  alive_count = 0;
+
+    VkPipeline            pipeline        = VK_NULL_HANDLE;
+    VkPipelineLayout      pipeline_layout = VK_NULL_HANDLE;
+    VkDescriptorSetLayout desc_layout     = VK_NULL_HANDLE;
+    VkDescriptorPool      descriptor_pool = VK_NULL_HANDLE;
+    std::vector<FrameUBO> frames;  // per-swapchain-image UBO + descriptor set
+};
+
+// ============================================================
 //  RendererImpl  —  all private Vulkan + SDL state
 // ============================================================
 struct RendererImpl {
@@ -177,7 +194,7 @@ struct RendererImpl {
 
     // ImGui
     VkDescriptorPool imgui_pool = VK_NULL_HANDLE;
-
+    
     // Runtime state
     float     clear_color[4]  = {0.306f, 0.643f, 0.761f, 1};
     glm::vec3 camera_pos      = {0,0,-6};

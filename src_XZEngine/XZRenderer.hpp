@@ -145,6 +145,24 @@ private:
     std::unique_ptr<CustomShaderQuadImpl> impl_;
 };
 
+class CustomShaderPoints3d {
+public:
+    explicit CustomShaderPoints3d(const std::string& frag_spv_path);
+
+    void setPositions(const std::vector<glm::vec3>& positions);
+
+    // Internal
+    CustomShaderPoints3dImpl* impl() const { return impl_.get(); }
+
+private:
+    friend class Renderer;
+
+    std::string            frag_spv_path_;
+    std::vector<glm::vec3> positions_;
+
+    std::unique_ptr<CustomShaderPoints3dImpl> impl_;
+};
+
 // ---------------------------------------------------------------
 //  ImGuiLayer  —  exposes engine objects as ImGui widgets.
 //  Obtain via Renderer::getGui().
@@ -163,8 +181,6 @@ public:
     void exposeLight(PointLight& light, const std::string& label);
 
     void exposeCamera(const std::string& label);
-    // Checkbox for flat / smooth shading toggle
-    void exposeFlatShading(MeshObject& obj, const std::string& label);
 
     bool exposeButton(const std::string& label);  // returns true when clicked
 

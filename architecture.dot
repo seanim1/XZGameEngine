@@ -27,12 +27,16 @@ digraph call_graph {
         SwordAnim    [label="SwordAnim", shape=box, fillcolor="#d5bdfc"]
         CharAnim    [label="CharAnim", shape=box, fillcolor="#d5bdfc"]
         FaceAnim    [label="FaceAnim", shape=box, fillcolor="#d5bdfc"]
+        ParticleSystem    [label="ParticleSystem", shape=box, fillcolor="#d5bdfc"]
     }
     
     MyApp -> DuelPlay [label="Controller Input"];
     DuelPlay -> SwordAnim [label="Player State\nEnemy State"];
     DuelPlay -> CharAnim [label="Player State\nEnemy State"];
+    DuelPlay -> ParticleSystem [label="Parry Status?"];
     SwordAnim -> Renderer [label="Sword Transformation"];
     CharAnim -> Renderer [label="Char Transformation"];
     FaceAnim -> Renderer [label="Char Transformation"];
+    ParticleSystem -> Renderer [label="Particle positions"];
+    DuelPlay -> Renderer [label="Post-Process enable?"];
 }

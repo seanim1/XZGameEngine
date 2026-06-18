@@ -6,6 +6,7 @@
 #include "XZRenderer.hpp"
 #include "XZDuelAnim.hpp"
 #include "XZDuelPlay.hpp"
+#include "XZParticleSystem.hpp"
 
 #include <iostream>
 // Tetrahedron vertex data — flat-shaded normals baked in
@@ -37,6 +38,7 @@ struct App {
     XZRenderer::MeshObject* playerSword = nullptr;
     XZRenderer::CustomShaderQuad* playerFace  = nullptr;
     XZRenderer::PointLight*       light = nullptr;
+    XZParticleSystem::ParticleSystem particle_system;
 
     XZDuelAnim::SwordAnim sword_anim{{0.0f, 90.0f, 270.0f}, {0.3f, 0.3f, 0.3f}};
     XZDuelPlay::DuelPlay  duel_play;
@@ -179,14 +181,12 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 
     if (app->duel_play.checkParry()) {
         app->duel_play.onParry();
+        app->particle_system.emitSparks(app->playerSword->getPosition());
         // PostProcess — not yet implemented
         // XZRenderer::PostProcess::radialBlur();
         // XZRenderer::PostProcess::screenShake();
         // XZRenderer::PostProcess::chromaticAberration();
         // XZRenderer::PostProcess::bloom();
-
-        // Particles — not yet implemented
-        // XZParticleSystem::emitSparks(app->playerSword->getPosition());
     };
 
     XZDuelAnim::Transformation sword_transform;
