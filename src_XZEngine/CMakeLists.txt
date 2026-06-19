@@ -12,6 +12,8 @@ add_custom_target(XZ_copy_shaders ALL
     COMMAND glslangValidator -V -S frag "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag" -o "${CMAKE_CURRENT_BINARY_DIR}/shaders/frag.spv"
     COMMAND glslangValidator -V -S frag "${CMAKE_CURRENT_SOURCE_DIR}/shaders/face.frag" -o "${CMAKE_CURRENT_BINARY_DIR}/shaders/face.spv"
     COMMAND glslangValidator -V -S frag "${CMAKE_CURRENT_SOURCE_DIR}/shaders/sparkParticles.frag" -o "${CMAKE_CURRENT_BINARY_DIR}/shaders/sparkParticles.spv"
+    COMMAND glslangValidator -V -S vert "${CMAKE_CURRENT_SOURCE_DIR}/shaders/postprocess.vert" -o "${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocess.spv"
+    COMMAND glslangValidator -V -S frag "${CMAKE_CURRENT_SOURCE_DIR}/shaders/postprocess.frag" -o "${CMAKE_CURRENT_BINARY_DIR}/shaders/postprocessfrag.spv"
     DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.vert"
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/shader.frag"
@@ -19,6 +21,8 @@ add_custom_target(XZ_copy_shaders ALL
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/face.frag"
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/particles3d.vert"
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/sparkParticles.frag"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shaders/postprocess.vert"
+        "${CMAKE_CURRENT_SOURCE_DIR}/shaders/postprocess.frag"
 
     COMMENT "Compiling shaders"
 )

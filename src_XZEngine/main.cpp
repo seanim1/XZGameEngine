@@ -38,7 +38,7 @@ struct App {
     XZRenderer::MeshObject*           enemyMesh   = nullptr;
     XZRenderer::MeshObject*           enemySword  = nullptr;
     XZRenderer::MeshObject*           playerSword = nullptr;
-    XZRenderer::CustomShaderQuad*     playerFace  = nullptr;
+    XZRenderer::CustomShaderQuad*     enemyFace  = nullptr;
     XZRenderer::PointLight*           light       = nullptr;
     XZRenderer::CustomShaderPoints3d* sparks      = nullptr;
 
@@ -46,7 +46,12 @@ struct App {
     XZDuelPlay::DuelPlay             duel_play;
     XZParticleSystem::ParticleSystem particle_system;
     XZCamera::Camera                 camera{{-2.6f, 3.8f, -8.0f}, {0.0f, 0.0f, 0.0f}};
-
+    float post_effect_timer    = 0.0f;
+    float post_effect_duration = 0.2f;
+    float time_scale       = 1.0f;
+    float slow_mo_timer    = 0.0f;
+    float slow_mo_duration = post_effect_duration;
+    float slow_mo_scale    = 0.2f;
     App() : renderer(1920, 1080, "XZRenderer") {}
 };
 
@@ -61,7 +66,7 @@ static void update_gui(XZRenderer::ImGuiLayer& gui, App& app)
     gui.separator();
     gui.exposeTransformation(*app.playerMesh, "Tetrahedron");
     gui.separator();
-    gui.exposeTransformation(*app.playerFace,  "Face");
+    gui.exposeTransformation(*app.enemyFace,  "Face");
     gui.separator();
     gui.exposeTransformation(*app.enemySword, "Sword");
     gui.separator();
@@ -111,10 +116,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     );
     app->playerSword->setScale(0.3f, 0.3f, 0.3f);
 
-    app->playerFace = &app->renderer.createCustomShaderQuad(SHADER_OUTPUT_DIR "face.spv");
-    app->playerFace->setPosition(-0.4f, 0.4f, -1.0f);
-    app->playerFace->setRotation(0.0f, 0.0f, 180.0f);
-    app->playerFace->setScale(3.0f);
+    app->enemyFace = &app->renderer.createCustomShaderQuad(SHADER_OUTPUT_DIR "face.spv");
+    app->enemyFace->setPosition(app->enemyMesh->getPosition() + 1.0f * app->enemyMesh->getForward());
+    app->enemyFace->setRotation(0.0f, 0.0f, 180.0f);
+    app->enemyFace->setScale(3.0f);
 
     app->light = &app->renderer.createPointLight();
     app->light->setPosition(2.0f, 2.0f, -2.0f);
@@ -156,26 +161,38 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     float delta_time   = current_time - last_time;
     last_time          = current_time;
 
+    // Slow motion
+    if (app->slow_mo_timer > 0.0f) {
+        app->slow_mo_timer -= delta_time;
+        app->time_scale = app->slow_mo_scale;
+    } else {
+        app->time_scale = 1.0f;
+    }
+    float scaled_delta = delta_time * app->time_scale;
+
     // Camera
-    app->camera.update(delta_time);
+    app->camera.update(scaled_delta);
     r.setCameraPosition(app->camera.getPosition());
     r.setCameraTarget(app->camera.getTarget());
 
-    // Enemy AI
+    // Enemy AI — unscaled, always attacks at normal speed
     static float enemy_attack_timer = 0.0f;
     constexpr float enemy_attack_interval = 2.0f;
-    enemy_attack_timer += delta_time;
+    enemy_attack_timer += scaled_delta;
     if (enemy_attack_timer >= enemy_attack_interval) {
         enemy_attack_timer = 0.0f;
         app->duel_play.setEnemyState(XZDuelPlay::EnemyState::AttackPrep);
     }
 
-    // Gameplay
-    app->duel_play.update(delta_time);
+    // Gameplay — scaled
+    app->duel_play.update(scaled_delta);
 
     switch (app->duel_play.getPlayerState()) {
     case XZDuelPlay::PlayerState::Parry:
         app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Parrying);
+        break;
+    case XZDuelPlay::PlayerState::CounterAvailable:
+        app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
         break;
     case XZDuelPlay::PlayerState::Block:
         app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
@@ -197,19 +214,18 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         break;
     }
 
-    // Particles
-    app->particle_system.update(delta_time);
+    // Particles — scaled
+    app->particle_system.update(scaled_delta);
 
     if (app->duel_play.checkParry()) {
         app->duel_play.onParry();
-        app->particle_system.emitSparks(app->playerSword->getPosition());
+        app->particle_system.emitSparks(app->enemySword->getPosition());
         app->sparks->setVisible(true);
-        app->camera.triggerShake(0.3f, 0.15f);
-
-        // PostProcess — not yet implemented
-        // XZRenderer::PostProcess::chromaticAberration();
-        // XZRenderer::PostProcess::radialBlur();
-        // XZRenderer::PostProcess::bloom();
+        app->camera.triggerShake(app->post_effect_duration, 0.05f);
+        app->renderer.setChromaticAberration(true, 0.008f);
+        app->renderer.setRadialBlur(true, 0.215f, 10);
+        app->post_effect_timer = 0.0f;
+        app->slow_mo_timer     = app->slow_mo_duration;  // trigger slow mo
     }
 
     std::vector<glm::vec3> particle_positions;
@@ -217,20 +233,26 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         if (p.alive) particle_positions.push_back(p.position);
     app->sparks->setPositions(particle_positions);
 
+    // Post effects — unscaled timer
+    app->post_effect_timer += delta_time;
+    if (app->post_effect_timer >= app->post_effect_duration) {
+        app->renderer.setChromaticAberration(false);
+        app->renderer.setRadialBlur(false);
+    }
     if (app->particle_system.aliveCount() == 0)
         app->sparks->setVisible(false);
 
-    // Sword transforms
+    // Sword transforms — scaled
     XZDuelAnim::Transformation sword_transform;
 
     sword_transform = app->sword_anim.getEnemySwordTransformation(
-        app->enemyMesh->getPosition(), app->enemyMesh->getRotation(), delta_time);
+        app->enemyMesh->getPosition(), app->enemyMesh->getRotation(), scaled_delta);
     app->enemySword->setPosition(sword_transform.position);
     app->enemySword->setRotation(sword_transform.rotation);
     app->enemySword->setScale(sword_transform.scale);
 
     sword_transform = app->sword_anim.getPlayerSwordTransformation(
-        app->playerMesh->getPosition(), app->playerMesh->getRotation(), delta_time);
+        app->playerMesh->getPosition(), app->playerMesh->getRotation(), scaled_delta);
     app->playerSword->setPosition(sword_transform.position);
     app->playerSword->setRotation(sword_transform.rotation);
     app->playerSword->setScale(sword_transform.scale);

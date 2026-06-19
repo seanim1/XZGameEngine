@@ -24,6 +24,7 @@ digraph call_graph {
         label="Animation"
         style=filled
         fillcolor="#f5f0ff"
+        Camera    [label="Camera", shape=box, fillcolor="#d5bdfc"]
         SwordAnim    [label="SwordAnim", shape=box, fillcolor="#d5bdfc"]
         CharAnim    [label="CharAnim", shape=box, fillcolor="#d5bdfc"]
         FaceAnim    [label="FaceAnim", shape=box, fillcolor="#d5bdfc"]
@@ -39,4 +40,5 @@ digraph call_graph {
     FaceAnim -> Renderer [label="Char Transformation"];
     ParticleSystem -> Renderer [label="Particle positions"];
     DuelPlay -> Renderer [label="Post-Process enable?"];
+    Camera -> Renderer [label="Camera zoom, transformation"];
 }

@@ -14,7 +14,7 @@ public:
     void setBasePosition(const glm::vec3& pos)    { m_base_position = pos; }
     void setBaseTarget(const glm::vec3& target)   { m_base_target   = target; }
 
-    void triggerShake(float duration = 0.3f, float intensity = 0.15f) {
+    void triggerShake(float duration = 0.1f, float intensity = 0.15f) {
         m_shake_duration  = duration;
         m_shake_intensity = intensity;
         m_shake_timer     = 0.0f;

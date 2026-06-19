@@ -3,9 +3,6 @@
 // ============================================================
 //  XZRenderer — Vulkan + SDL3 + ImGui rendering module
 //  Namespace : XZRenderer
-//
-//  User code only needs to #include "XZRenderer.hpp".
-//  No Vulkan, SDL, ImGui or Assimp headers leak into this file.
 // ============================================================
 
 #include <string>
@@ -15,15 +12,11 @@
 
 namespace XZRenderer {
 
-// ----- Forward declarations of opaque implementation types -----
 struct RendererImpl;
 struct MeshObjectImpl;
 struct CustomShaderQuadImpl;
-struct CustomShaderPoints3dImpl;   // NEW
+struct CustomShaderPoints3dImpl;
 
-// ---------------------------------------------------------------
-//  Vertex  —  public vertex format for loadFromVertices()
-// ---------------------------------------------------------------
 struct Vertex {
     glm::vec3 position;
     glm::vec2 uv;
@@ -38,13 +31,12 @@ public:
     void setPosition(float x, float y, float z);
     void setPosition(const glm::vec3& pos);
     const glm::vec3& getPosition() const { return position_; }
-
 private:
     glm::vec3 position_ = {2.0f, 2.0f, -2.0f};
 };
 
 // ---------------------------------------------------------------
-//  MeshObject  —  a textured 3-D object with Blinn-Phong lighting.
+//  MeshObject
 // ---------------------------------------------------------------
 class MeshObject {
 public:
@@ -52,59 +44,10 @@ public:
                const std::vector<Vertex>&   vertices,
                const std::vector<uint32_t>& indices,
                const std::string&           texture_path);
-
     MeshObject(RendererImpl*      renderer_impl,
                const std::string& mesh_path,
                const std::string& texture_path);
-
     ~MeshObject();
-
-    // --- Transform ---
-    void setPosition(float x, float y, float z);
-    void setPosition(const glm::vec3& pos);
-
-    void setRotation(float x, float y, float z);   // degrees
-    void setRotation(const glm::vec3& degrees);
-
-    void setScale(float uniform_scale);
-    void setScale(float x, float y, float z);
-    void setScale(const glm::vec3& scale);
-
-    // --- Accessors (read-only) ---
-    const glm::vec3& getPosition() const { return position_; }
-    const glm::vec3& getRotation() const { return rotation_; }
-    const glm::vec3& getScale()    const { return scale_; }
-    const glm::vec3 getForward() const;
-    const glm::vec3 getRight() const;
-
-    // Internal — do not call from user code
-    MeshObjectImpl* impl() const { return impl_.get(); }
-
-private:
-    friend class Renderer;
-    void loadFromGLTF(const std::string& mesh_path,
-                      const std::string& texture_path);
-    void loadFromVertices(const std::vector<Vertex>&   vertices,
-                          const std::vector<uint32_t>& indices,
-                          const std::string&           texture_path);
-
-    glm::vec3 position_ = {0.0f, 0.0f, 0.0f};
-    glm::vec3 rotation_ = {0.0f, 0.0f, 0.0f};
-    glm::vec3 scale_    = {1.0f, 1.0f, 1.0f};
-
-    std::unique_ptr<MeshObjectImpl> impl_;
-};
-
-// ---------------------------------------------------------------
-//  CustomShaderQuad
-// ---------------------------------------------------------------
-class CustomShaderQuad {
-public:
-    explicit CustomShaderQuad(const std::string& frag_spv_path);
-
-    void setVertices(const std::vector<glm::vec3>& positions,
-                     const std::vector<glm::vec2>& uvs,
-                     const std::vector<uint32_t>&  indices);
 
     void setPosition(float x, float y, float z);
     void setPosition(const glm::vec3& pos);
@@ -117,52 +60,71 @@ public:
     const glm::vec3& getPosition() const { return position_; }
     const glm::vec3& getRotation() const { return rotation_; }
     const glm::vec3& getScale()    const { return scale_; }
+    const glm::vec3 getForward() const;
+    const glm::vec3 getRight() const;
 
+    MeshObjectImpl* impl() const { return impl_.get(); }
+
+private:
+    friend class Renderer;
+    void loadFromGLTF(const std::string& mesh_path, const std::string& texture_path);
+    void loadFromVertices(const std::vector<Vertex>& vertices,
+                          const std::vector<uint32_t>& indices,
+                          const std::string& texture_path);
+
+    glm::vec3 position_ = {0.0f, 0.0f, 0.0f};
+    glm::vec3 rotation_ = {0.0f, 0.0f, 0.0f};
+    glm::vec3 scale_    = {1.0f, 1.0f, 1.0f};
+    std::unique_ptr<MeshObjectImpl> impl_;
+};
+
+// ---------------------------------------------------------------
+//  CustomShaderQuad
+// ---------------------------------------------------------------
+class CustomShaderQuad {
+public:
+    explicit CustomShaderQuad(const std::string& frag_spv_path);
+    void setVertices(const std::vector<glm::vec3>& positions,
+                     const std::vector<glm::vec2>& uvs,
+                     const std::vector<uint32_t>&  indices);
+    void setPosition(float x, float y, float z);
+    void setPosition(const glm::vec3& pos);
+    void setRotation(float x, float y, float z);
+    void setRotation(const glm::vec3& degrees);
+    void setScale(float uniform_scale);
+    void setScale(float x, float y, float z);
+    void setScale(const glm::vec3& scale);
+
+    const glm::vec3& getPosition() const { return position_; }
+    const glm::vec3& getRotation() const { return rotation_; }
+    const glm::vec3& getScale()    const { return scale_; }
     CustomShaderQuadImpl* impl() const { return impl_.get(); }
 
 private:
     friend class Renderer;
-
     std::string frag_spv_path_;
     glm::vec3   position_ = {0.0f, 0.0f, 0.0f};
     glm::vec3   rotation_ = {0.0f, 0.0f, 0.0f};
     glm::vec3   scale_    = {1.0f, 1.0f, 1.0f};
-
     std::unique_ptr<CustomShaderQuadImpl> impl_;
 };
 
 // ---------------------------------------------------------------
-//  CustomShaderPoints3d  —  a batch of world-space points rendered
-//  with a user-supplied fragment shader (.spv).
-//  Useful for particles, sparks, debug visualizations etc.
-//
-//  Usage:
-//    auto& sparks = renderer.createCustomShaderPoints3d("spark.frag.spv", 500);
-//    sparks.setPositions(positions);   // call every frame with alive positions
-//    sparks.setVisible(true/false);    // toggle rendering
+//  CustomShaderPoints3d
 // ---------------------------------------------------------------
 class CustomShaderPoints3d {
 public:
     explicit CustomShaderPoints3d(const std::string& frag_spv_path);
-
-    // Upload new positions — call every frame with alive particle positions only.
-    // Passing an empty vector hides all points.
     void setPositions(const std::vector<glm::vec3>& positions);
-
-    // Toggle rendering without clearing positions
     void setVisible(bool visible) { visible_ = visible; }
     bool isVisible() const        { return visible_; }
-
-    // Internal
     CustomShaderPoints3dImpl* impl() const { return impl_.get(); }
 
 private:
     friend class Renderer;
-
     std::string            frag_spv_path_;
     std::vector<glm::vec3> positions_;
     bool                   visible_ = true;
-
     std::unique_ptr<CustomShaderPoints3dImpl> impl_;
 };
 
@@ -183,7 +145,6 @@ public:
     void text(const std::string& str);
     void showFPS();
 
-    // Internal
     RendererImpl* renderer_impl_ = nullptr;
 };
 
@@ -202,8 +163,8 @@ public:
 
     // ---- Configuration (call BEFORE init()) ----
     void setClearColor(float r, float g, float b, float a = 1.0f);
-    void setCameraPosition(glm::vec3 pos_);
-    void setCameraTarget(glm::vec3 target_);
+    void setCameraPosition(glm::vec3 pos);
+    void setCameraTarget(glm::vec3 target);
     void enableLogging(bool enable);
 
     // ---- Initialisation (call ONCE) ----
@@ -213,18 +174,16 @@ public:
     MeshObject& createMeshObject(const std::vector<Vertex>&   vertices,
                                  const std::vector<uint32_t>& indices,
                                  const std::string&           texture_path);
-
     MeshObject& createMeshObject(const std::string& mesh_path,
                                  const std::string& texture_path);
-
-    CustomShaderQuad& createCustomShaderQuad(const std::string& frag_spv_path);
-
-    // max_points: pre-allocates the GPU buffer at this capacity.
-    // setPositions() must never exceed this number.
+    CustomShaderQuad&     createCustomShaderQuad(const std::string& frag_spv_path);
     CustomShaderPoints3d& createCustomShaderPoints3d(const std::string& frag_spv_path,
-                                                      uint32_t           max_points = 500);
-
+                                                      uint32_t max_points = 500);
     PointLight& createPointLight();
+
+    // ---- Post-processing (call each frame before beginFrame, or once to set) ----
+    void setChromaticAberration(bool enabled, float strength = 0.005f);
+    void setRadialBlur(bool enabled, float strength = 0.02f, int samples = 10);
 
     // ---- ImGui ----
     ImGuiLayer& getGui();
@@ -242,7 +201,7 @@ private:
     std::unique_ptr<RendererImpl>                       m_impl;
     std::vector<std::unique_ptr<MeshObject>>            m_mesh_objects;
     std::vector<std::unique_ptr<CustomShaderQuad>>      m_quads;
-    std::vector<std::unique_ptr<CustomShaderPoints3d>>  m_points_clusters;  // NEW
+    std::vector<std::unique_ptr<CustomShaderPoints3d>>  m_points_clusters;
     std::vector<std::unique_ptr<PointLight>>            m_lights;
     std::unique_ptr<ImGuiLayer>                         m_gui;
 

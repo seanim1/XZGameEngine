@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 
 namespace XZDuelPlay {
 
@@ -6,6 +7,7 @@ enum class PlayerState {
     Idle,
     Damaged,
     Parry,
+    CounterAvailable,
     Block,
     Attack
 };
@@ -29,10 +31,18 @@ public:
 
     void onMouseUp() {
         m_mouse_held   = false;
-        m_player_state = PlayerState::Idle;
+        if (m_player_state != PlayerState::CounterAvailable)
+            m_player_state = PlayerState::Idle;
     }
 
     void update(float delta_time) {
+        // CounterAvailable window
+        if (m_player_state == PlayerState::CounterAvailable) {
+            m_counter_timer += delta_time;
+            if (m_counter_timer >= m_counter_window)
+                m_player_state = m_mouse_held ? PlayerState::Block : PlayerState::Idle;
+        }
+
         // Player parry window
         if (m_mouse_held) {
             m_mouse_hold_timer += delta_time;
@@ -41,6 +51,7 @@ public:
                 m_player_state = PlayerState::Block;
             }
         }
+
         // Enemy state machine
         switch (m_enemy_state) {
             case EnemyState::AttackPrep:
@@ -63,6 +74,7 @@ public:
                 break;
         }
     }
+
     bool checkParry() {
         if (m_enemy_state == EnemyState::Attack &&
             m_player_state == PlayerState::Parry) {
@@ -74,7 +86,10 @@ public:
 
     void onParry() {
         std::cout << "Parried" << std::endl;
+        m_player_state  = PlayerState::CounterAvailable;
+        m_counter_timer = 0.0f;
     }
+
     PlayerState getPlayerState() const { return m_player_state; }
     EnemyState  getEnemyState()  const { return m_enemy_state;  }
     void setPlayerState(PlayerState state) { m_player_state = state; }
@@ -91,6 +106,9 @@ private:
     bool  m_mouse_held       = false;
     float m_mouse_hold_timer = 0.0f;
     float m_parry_window     = 0.2f;
+
+    float m_counter_timer  = 0.0f;
+    float m_counter_window = 0.3f;
 };
 
 } // namespace XZDuelPlay
