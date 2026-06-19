@@ -16,10 +16,10 @@ struct Particle {
 
 struct SparkConfig {
     int   count          = 30;
-    float speed          = 3.0f;   // initial speed
-    float lifetime       = 0.4f;   // seconds
+    float speed          = 6.0f;   // initial speed
+    float lifetime       = 1.4f;   // seconds
     float gravity        = -9.8f;  // downward acceleration
-    float spread         = 1.0f;   // how wide the cone of sparks is
+    float spread         = 6.0f;   // how wide the cone of sparks is
 };
 
 class ParticleSystem {

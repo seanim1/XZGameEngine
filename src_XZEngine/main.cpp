@@ -38,7 +38,9 @@ struct App {
     XZRenderer::MeshObject* playerSword = nullptr;
     XZRenderer::CustomShaderQuad* playerFace  = nullptr;
     XZRenderer::PointLight*       light = nullptr;
+
     XZParticleSystem::ParticleSystem particle_system;
+    XZRenderer::CustomShaderPoints3d* sparks  = nullptr;
 
     XZDuelAnim::SwordAnim sword_anim{{0.0f, 90.0f, 270.0f}, {0.3f, 0.3f, 0.3f}};
     XZDuelPlay::DuelPlay  duel_play;
@@ -91,6 +93,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     // --- Light ---
     app->light = &app->renderer.createPointLight();
     app->light->setPosition(2.0f, 2.0f, -2.0f);
+
+    app->sparks = &app->renderer.createCustomShaderPoints3d(
+    SHADER_OUTPUT_DIR "sparkParticles.spv", 500);
+    app->sparks->setVisible(false);
 
     app->renderer.setCameraPosition(-2.6f, 3.8f, -8.0f);
     return SDL_APP_CONTINUE;
@@ -179,15 +185,27 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         break;
     }
 
+    app->particle_system.update(delta_time);
     if (app->duel_play.checkParry()) {
         app->duel_play.onParry();
         app->particle_system.emitSparks(app->playerSword->getPosition());
+        app->sparks->setVisible(true);
+
         // PostProcess — not yet implemented
         // XZRenderer::PostProcess::radialBlur();
         // XZRenderer::PostProcess::screenShake();
         // XZRenderer::PostProcess::chromaticAberration();
         // XZRenderer::PostProcess::bloom();
     };
+    std::vector<glm::vec3> particle_positions;
+    // Upload alive particle positions to GPU every frame
+    for (const XZParticleSystem::Particle& p : app->particle_system.getParticles())
+        if (p.alive) particle_positions.push_back(p.position);
+    app->sparks->setPositions(particle_positions);
+
+    // Hide once all sparks have died
+    if (app->particle_system.aliveCount() == 0)
+        app->sparks->setVisible(false);
 
     XZDuelAnim::Transformation sword_transform;
 
@@ -205,7 +223,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 
     update_gui(r.getGui(), *app);
 
-    r.endFrame();
+    r.submitFrame();
     return SDL_APP_CONTINUE;
 }
 

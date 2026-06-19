@@ -72,11 +72,10 @@ struct GpuTexture {
 
 struct FrameUBO {
     GpuBuffer       buffer;
-    void*           mapped          = nullptr;
-    VkDescriptorSet descriptor_set  = VK_NULL_HANDLE;
+    void*           mapped         = nullptr;
+    VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 };
 
-// Uniform buffer layout — must match shaders
 struct alignas(16) UniformData {
     glm::mat4 mvp;
     glm::mat4 model;
@@ -84,7 +83,6 @@ struct alignas(16) UniformData {
     glm::vec4 cam_pos;
 };
 
-// One GPU sub-mesh (from Assimp or raw data)
 struct GpuSubMesh {
     GpuBuffer vertex_buffer;
     GpuBuffer index_buffer;
@@ -92,27 +90,22 @@ struct GpuSubMesh {
 };
 
 // ============================================================
-//  MeshObjectImpl  —  all GPU state for one MeshObject
+//  MeshObjectImpl
 // ============================================================
 struct MeshObjectImpl {
-    RendererImpl* renderer = nullptr;   // back-pointer, set by Renderer
+    RendererImpl* renderer = nullptr;
 
-    // glTF path: multiple sub-meshes
     std::vector<GpuSubMesh> sub_meshes;
     bool is_gltf = false;
 
-    // Raw vertex path: flat + smooth variants
-    GpuBuffer flat_vertex;
-    GpuBuffer flat_index;
-    GpuBuffer smooth_vertex;
-    GpuBuffer smooth_index;
+    GpuBuffer mesh_vertex;
+    GpuBuffer mesh_index;
     uint32_t  raw_index_count = 0;
 
     GpuTexture texture;
 
-    // Per-swapchain-image UBO + descriptor set
-    std::vector<FrameUBO>  frames;
-    VkDescriptorPool       descriptor_pool = VK_NULL_HANDLE;
+    std::vector<FrameUBO> frames;
+    VkDescriptorPool      descriptor_pool = VK_NULL_HANDLE;
 };
 
 // ============================================================
@@ -138,7 +131,7 @@ struct CustomShaderQuadImpl {
 struct CustomShaderPoints3dImpl {
     RendererImpl* renderer = nullptr;
 
-    GpuBuffer vertex_buffer;
+    GpuBuffer vertex_buffer;   // pre-allocated at max_count capacity
     uint32_t  max_count   = 500;
     uint32_t  alive_count = 0;
 
@@ -146,18 +139,16 @@ struct CustomShaderPoints3dImpl {
     VkPipelineLayout      pipeline_layout = VK_NULL_HANDLE;
     VkDescriptorSetLayout desc_layout     = VK_NULL_HANDLE;
     VkDescriptorPool      descriptor_pool = VK_NULL_HANDLE;
-    std::vector<FrameUBO> frames;  // per-swapchain-image UBO + descriptor set
+    std::vector<FrameUBO> frames;
 };
 
 // ============================================================
-//  RendererImpl  —  all private Vulkan + SDL state
+//  RendererImpl
 // ============================================================
 struct RendererImpl {
-    // SDL
     SDL_Window* window       = nullptr;
     bool        should_close = false;
 
-    // Vulkan core
     VkInstance       instance        = VK_NULL_HANDLE;
     VkSurfaceKHR     surface         = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -165,7 +156,6 @@ struct RendererImpl {
     VkQueue          graphics_queue  = VK_NULL_HANDLE;
     uint32_t         graphics_family = 0;
 
-    // Swapchain
     VkSwapchainKHR           swapchain        = VK_NULL_HANDLE;
     std::vector<VkImage>     images;
     std::vector<VkImageView> image_views;
@@ -173,44 +163,35 @@ struct RendererImpl {
     VkSurfaceFormatKHR       surface_format   = {};
     uint32_t                 image_count      = 0;
 
-    // Depth
     GpuTexture depth;
 
-    // Command pool + buffers
     VkCommandPool                command_pool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> scene_cmds;
     std::vector<VkCommandBuffer> imgui_cmds;
 
-    // Sync — one semaphore per swapchain image to avoid reuse conflicts
     std::vector<VkSemaphore> image_available_sems;
     std::vector<VkSemaphore> render_finished_sems;
     VkFence                  in_flight_fence = VK_NULL_HANDLE;
     uint32_t                 current_frame   = 0;
 
-    // Main opaque pipeline (Blinn-Phong, shared by all MeshObjects)
     VkPipeline            main_pipeline        = VK_NULL_HANDLE;
     VkPipelineLayout      main_pipeline_layout = VK_NULL_HANDLE;
     VkDescriptorSetLayout main_desc_layout     = VK_NULL_HANDLE;
 
-    // ImGui
     VkDescriptorPool imgui_pool = VK_NULL_HANDLE;
-    
-    // Runtime state
-    float     clear_color[4]  = {0.306f, 0.643f, 0.761f, 1};
-    glm::vec3 camera_pos      = {0,0,-6};
-    glm::vec3 camera_target   = {0,0,0};
-    uint32_t  current_image   = 0;
-    float     last_time       = 0;
+
+    float     clear_color[4] = {0.306f, 0.643f, 0.761f, 1};
+    glm::vec3 camera_pos     = {0, 0, -6};
+    glm::vec3 camera_target  = {0, 0, 0};
+    uint32_t  current_image  = 0;
+    float     last_time      = 0;
 };
 
 // ============================================================
 //  Low-level Vulkan helpers
 // ============================================================
 static void check_vk(VkResult r, const char* op) {
-    if (r != VK_SUCCESS) {
-        SDL_Log("XZR Vulkan error [%s]: %d", op, r);
-        exit(1);
-    }
+    if (r != VK_SUCCESS) { SDL_Log("XZR Vulkan error [%s]: %d", op, r); exit(1); }
 }
 
 static uint32_t find_memory_type(VkPhysicalDevice pd,
@@ -230,7 +211,7 @@ static GpuBuffer make_buffer(VkDevice dev, VkPhysicalDevice pd,
     GpuBuffer out;
     VkBufferCreateInfo bi = {
         .sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size=size,.usage=usage,.sharingMode=VK_SHARING_MODE_EXCLUSIVE,
+        .size=size, .usage=usage, .sharingMode=VK_SHARING_MODE_EXCLUSIVE,
     };
     xz_log("vkCreateBuffer");
     check_vk(vkCreateBuffer(dev, &bi, nullptr, &out.buffer), "vkCreateBuffer");
@@ -276,7 +257,6 @@ static VkShaderModule load_shader(VkDevice dev, const char* path) {
     free(spv); return mod;
 }
 
-// Upload pixel data to a new GpuTexture
 static GpuTexture make_texture(RendererImpl* r, stbi_uc* px, int w, int h) {
     GpuTexture out;
     VkDeviceSize sz=(VkDeviceSize)(w*h*4);
@@ -304,7 +284,6 @@ static GpuTexture make_texture(RendererImpl* r, stbi_uc* px, int w, int h) {
     check_vk(vkAllocateMemory(r->device,&ma,nullptr,&out.memory),"img mem");
     vkBindImageMemory(r->device,out.image,out.memory,0);
 
-    // One-time command buffer
     VkCommandBufferAllocateInfo ca={
         .sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool=r->command_pool,.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,.commandBufferCount=1,
@@ -378,7 +357,6 @@ static GpuTexture load_texture(RendererImpl* r, const std::string& path) {
     return t;
 }
 
-// Write UBO + sampler descriptor set
 static void write_ds_ubo_sampler(VkDevice dev, VkDescriptorSet ds,
     VkBuffer ubo, VkImageView view, VkSampler sampler)
 {
@@ -394,7 +372,6 @@ static void write_ds_ubo_sampler(VkDevice dev, VkDescriptorSet ds,
     vkUpdateDescriptorSets(dev,2,wr,0,nullptr);
 }
 
-// Allocate per-frame UBOs + descriptor sets for a MeshObjectImpl
 static void alloc_mesh_frames(RendererImpl* r, MeshObjectImpl* m) {
     uint32_t n = r->image_count;
     m->frames.resize(n);
@@ -430,6 +407,43 @@ static void alloc_mesh_frames(RendererImpl* r, MeshObjectImpl* m) {
     }
 }
 
+// Allocate per-frame UBOs + descriptor sets for a UBO-only pipeline (quad or points)
+static void alloc_ubo_frames(RendererImpl* r, VkDescriptorSetLayout desc_layout,
+    VkDescriptorPool& out_pool, std::vector<FrameUBO>& out_frames)
+{
+    uint32_t n = r->image_count;
+    out_frames.resize(n);
+
+    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, n};
+    VkDescriptorPoolCreateInfo pi={
+        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets=n,.poolSizeCount=1,.pPoolSizes=&ps,
+    };
+    check_vk(vkCreateDescriptorPool(r->device,&pi,nullptr,&out_pool),"ubo pool");
+
+    std::vector<VkDescriptorSetLayout> layouts(n, desc_layout);
+    VkDescriptorSetAllocateInfo ai={
+        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool=out_pool,.descriptorSetCount=n,.pSetLayouts=layouts.data(),
+    };
+    std::vector<VkDescriptorSet> sets(n);
+    check_vk(vkAllocateDescriptorSets(r->device,&ai,sets.data()),"ubo sets");
+
+    for (uint32_t i=0;i<n;i++){
+        out_frames[i].buffer=make_buffer(r->device,r->physical_device,sizeof(UniformData),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        vkMapMemory(r->device,out_frames[i].buffer.memory,0,sizeof(UniformData),0,&out_frames[i].mapped);
+        out_frames[i].descriptor_set=sets[i];
+        VkDescriptorBufferInfo bi{.buffer=out_frames[i].buffer.buffer,.offset=0,.range=sizeof(UniformData)};
+        VkWriteDescriptorSet wr{
+            .sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,.dstSet=sets[i],.dstBinding=0,
+            .descriptorCount=1,.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,.pBufferInfo=&bi,
+        };
+        vkUpdateDescriptorSets(r->device,1,&wr,0,nullptr);
+    }
+}
+
 // ============================================================
 //  Vulkan initialisation
 // ============================================================
@@ -438,13 +452,11 @@ static void build_main_pipeline(RendererImpl* r);
 static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
                         const std::string& title, const float cc[4])
 {
-    // SDL
     xz_log("SDL_Init");
     if (!SDL_Init(SDL_INIT_VIDEO)){SDL_Log("SDL_Init: %s",SDL_GetError());exit(1);}
     r->window = SDL_CreateWindow(title.c_str(),(int)W,(int)H,SDL_WINDOW_VULKAN);
     if (!r->window){SDL_Log("Window: %s",SDL_GetError());exit(1);}
 
-    // Instance
     uint32_t api=0; vkEnumerateInstanceVersion(&api);
     xz_logf("Vulkan %d.%d.%d",VK_VERSION_MAJOR(api),VK_VERSION_MINOR(api),VK_VERSION_PATCH(api));
 
@@ -494,7 +506,6 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
     if (!SDL_Vulkan_CreateSurface(r->window,r->instance,nullptr,&r->surface))
     {SDL_Log("Surface: %s",SDL_GetError());exit(1);}
 
-    // Physical device
     uint32_t dc=0; vkEnumeratePhysicalDevices(r->instance,&dc,nullptr);
     std::vector<VkPhysicalDevice> devs(dc);
     vkEnumeratePhysicalDevices(r->instance,&dc,devs.data());
@@ -519,14 +530,13 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
         for (auto& f:fmts) if(f.format==pf){r->surface_format=f;goto fmt_done;}
     fmt_done:;
 
-    // Logical device
     float prio=1.0f;
     VkDeviceQueueCreateInfo qi{
         .sType=VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex=r->graphics_family,.queueCount=1,.pQueuePriorities=&prio,
     };
     std::vector<const char*> dexts={VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-#ifdef __APPLE__ 
+#ifdef __APPLE__
     dexts.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
 #endif
     VkPhysicalDeviceDynamicRenderingFeatures drf{
@@ -541,7 +551,6 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
     check_vk(vkCreateDevice(r->physical_device,&di,nullptr,&r->device),"device");
     vkGetDeviceQueue(r->device,r->graphics_family,0,&r->graphics_queue);
 
-    // Swapchain
     VkCompositeAlphaFlagBitsKHR alpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     if(sc.supportedCompositeAlpha&VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR)
         alpha=VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
@@ -572,7 +581,6 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
         check_vk(vkCreateImageView(r->device,&vi,nullptr,&r->image_views[i]),"image view");
     }
 
-    // Command pool
     VkCommandPoolCreateInfo cpi{
         .sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags=VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
@@ -606,44 +614,36 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
         };
         check_vk(vkCreateImageView(r->device,&vi,nullptr,&r->depth.view),"depth view");
 
-        // Transition depth image to DEPTH_STENCIL_ATTACHMENT_OPTIMAL once at init
         VkCommandBufferAllocateInfo depth_cba = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool = r->command_pool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
+            .sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool=r->command_pool,.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY,.commandBufferCount=1,
         };
         VkCommandBuffer depth_cmd;
         vkAllocateCommandBuffers(r->device, &depth_cba, &depth_cmd);
         VkCommandBufferBeginInfo depth_begin = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
         vkBeginCommandBuffer(depth_cmd, &depth_begin);
         VkImageMemoryBarrier depth_bar = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-            .srcAccessMask = 0,
-            .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = r->depth.image,
-            .subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1},
+            .sType=VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask=0,.dstAccessMask=VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .oldLayout=VK_IMAGE_LAYOUT_UNDEFINED,
+            .newLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED,.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED,
+            .image=r->depth.image,.subresourceRange={VK_IMAGE_ASPECT_DEPTH_BIT,0,1,0,1},
         };
         vkCmdPipelineBarrier(depth_cmd,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-            0, 0, nullptr, 0, nullptr, 1, &depth_bar);
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            0,0,nullptr,0,nullptr,1,&depth_bar);
         vkEndCommandBuffer(depth_cmd);
         VkSubmitInfo depth_si = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .commandBufferCount = 1, .pCommandBuffers = &depth_cmd,
+            .sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,.commandBufferCount=1,.pCommandBuffers=&depth_cmd,
         };
         xz_log("vkQueueSubmit (depth layout transition)");
-        vkQueueSubmit(r->graphics_queue, 1, &depth_si, VK_NULL_HANDLE);
+        vkQueueSubmit(r->graphics_queue,1,&depth_si,VK_NULL_HANDLE);
         vkQueueWaitIdle(r->graphics_queue);
-        vkFreeCommandBuffers(r->device, r->command_pool, 1, &depth_cmd);
+        vkFreeCommandBuffers(r->device,r->command_pool,1,&depth_cmd);
     }
 
     // Shared descriptor set layout: binding 0 = UBO, binding 1 = sampler
@@ -662,7 +662,6 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
         check_vk(vkCreateDescriptorSetLayout(r->device,&li,nullptr,&r->main_desc_layout),"main layout");
     }
 
-    // Sync objects
     VkSemaphoreCreateInfo semi{.sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     VkFenceCreateInfo     fi  {.sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,.flags=VK_FENCE_CREATE_SIGNALED_BIT};
     xz_log("vkCreateSemaphore / Fence");
@@ -674,7 +673,6 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
     }
     check_vk(vkCreateFence(r->device,&fi,nullptr,&r->in_flight_fence),"fence");
 
-    // Command buffers
     r->scene_cmds.resize(r->image_count);
     r->imgui_cmds.resize(r->image_count);
     VkCommandBufferAllocateInfo cba{
@@ -685,11 +683,26 @@ static void vulkan_init(RendererImpl* r, uint32_t W, uint32_t H,
     check_vk(vkAllocateCommandBuffers(r->device,&cba,r->scene_cmds.data()),"scene cmds");
     check_vk(vkAllocateCommandBuffers(r->device,&cba,r->imgui_cmds.data()),"imgui cmds");
 
-    // Main pipeline
     for (int i=0;i<4;i++) r->clear_color[i]=cc[i];
     build_main_pipeline(r);
 
     xz_logf("Swapchain %ux%u count=%d",r->swapchain_extent.width,r->swapchain_extent.height,r->image_count);
+}
+
+// Helper: create a UBO-only descriptor set layout (used by quad and points pipelines)
+static VkDescriptorSetLayout make_ubo_desc_layout(RendererImpl* r,
+    VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+{
+    VkDescriptorSetLayoutBinding b{
+        .binding=0,.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount=1,.stageFlags=stages,
+    };
+    VkDescriptorSetLayoutCreateInfo li{
+        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,.bindingCount=1,.pBindings=&b,
+    };
+    VkDescriptorSetLayout layout;
+    check_vk(vkCreateDescriptorSetLayout(r->device,&li,nullptr,&layout),"ubo layout");
+    return layout;
 }
 
 static void build_main_pipeline(RendererImpl* r) {
@@ -771,53 +784,15 @@ static void build_main_pipeline(RendererImpl* r) {
     vkDestroyShaderModule(r->device,fm,nullptr);
 }
 
-// Build the alpha-blend pipeline for a CustomShaderQuad
 static void build_quad_pipeline(RendererImpl* r, CustomShaderQuadImpl* m,
     const std::string& frag_path)
 {
     uint32_t n = r->image_count;
 
-    // UBO-only descriptor layout
-    VkDescriptorSetLayoutBinding b{
-        .binding=0,.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount=1,.stageFlags=VK_SHADER_STAGE_VERTEX_BIT,
-    };
-    VkDescriptorSetLayoutCreateInfo li{
-        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,.bindingCount=1,.pBindings=&b,
-    };
-    check_vk(vkCreateDescriptorSetLayout(r->device,&li,nullptr,&m->desc_layout),"quad layout");
+    m->desc_layout = make_ubo_desc_layout(r, VK_SHADER_STAGE_VERTEX_BIT);
+    alloc_ubo_frames(r, m->desc_layout, m->descriptor_pool, m->frames);
+    m->renderer = r;
 
-    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,n};
-    VkDescriptorPoolCreateInfo pi{
-        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets=n,.poolSizeCount=1,.pPoolSizes=&ps,
-    };
-    check_vk(vkCreateDescriptorPool(r->device,&pi,nullptr,&m->descriptor_pool),"quad pool");
-
-    std::vector<VkDescriptorSetLayout> layouts(n, m->desc_layout);
-    VkDescriptorSetAllocateInfo ai{
-        .sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool=m->descriptor_pool,.descriptorSetCount=n,.pSetLayouts=layouts.data(),
-    };
-    std::vector<VkDescriptorSet> sets(n);
-    check_vk(vkAllocateDescriptorSets(r->device,&ai,sets.data()),"quad sets");
-
-    m->frames.resize(n); m->renderer=r;
-    for (uint32_t i=0;i<n;i++){
-        m->frames[i].buffer=make_buffer(r->device,r->physical_device,sizeof(UniformData),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        vkMapMemory(r->device,m->frames[i].buffer.memory,0,sizeof(UniformData),0,&m->frames[i].mapped);
-        m->frames[i].descriptor_set=sets[i];
-        VkDescriptorBufferInfo bi{.buffer=m->frames[i].buffer.buffer,.offset=0,.range=sizeof(UniformData)};
-        VkWriteDescriptorSet wr{
-            .sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,.dstSet=sets[i],.dstBinding=0,
-            .descriptorCount=1,.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,.pBufferInfo=&bi,
-        };
-        vkUpdateDescriptorSets(r->device,1,&wr,0,nullptr);
-    }
-
-    // Pipeline layout
     VkPipelineLayoutCreateInfo pli{
         .sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount=1,.pSetLayouts=&m->desc_layout,
@@ -827,7 +802,6 @@ static void build_quad_pipeline(RendererImpl* r, CustomShaderQuadImpl* m,
     VkShaderModule vm=load_shader(r->device, SHADER_OUTPUT_DIR "quad.spv");
     VkShaderModule fm=load_shader(r->device, frag_path.c_str());
 
-    // QuadVertex: position (vec3) + uv (vec2), no normal
     struct QV { glm::vec3 p; glm::vec2 u; };
     VkVertexInputBindingDescription qbd{.binding=0,.stride=sizeof(QV),.inputRate=VK_VERTEX_INPUT_RATE_VERTEX};
     VkVertexInputAttributeDescription qad[2]={
@@ -898,6 +872,106 @@ static void build_quad_pipeline(RendererImpl* r, CustomShaderQuadImpl* m,
     check_vk(vkCreateGraphicsPipelines(r->device,VK_NULL_HANDLE,1,&gpi,nullptr,&m->pipeline),"quad pipeline");
     vkDestroyShaderModule(r->device,vm,nullptr);
     vkDestroyShaderModule(r->device,fm,nullptr);
+
+    (void)n;
+}
+
+// ============================================================
+//  build_points_pipeline  —  additive-blended point list
+// ============================================================
+static void build_points_pipeline(RendererImpl* r, CustomShaderPoints3dImpl* m,
+    const std::string& frag_path)
+{
+    // UBO accessible from both vertex and fragment shader
+    m->desc_layout = make_ubo_desc_layout(r,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    alloc_ubo_frames(r, m->desc_layout, m->descriptor_pool, m->frames);
+    m->renderer = r;
+
+    VkPipelineLayoutCreateInfo pli{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount=1,.pSetLayouts=&m->desc_layout,
+    };
+    check_vk(vkCreatePipelineLayout(r->device,&pli,nullptr,&m->pipeline_layout),"points pl");
+
+    VkShaderModule vm = load_shader(r->device, SHADER_OUTPUT_DIR "particles3d.spv");
+    VkShaderModule fm = load_shader(r->device, frag_path.c_str());
+
+    // Vertex input: just vec3 position — no uv, no normal
+    VkVertexInputBindingDescription vbd{
+        .binding=0,.stride=sizeof(glm::vec3),.inputRate=VK_VERTEX_INPUT_RATE_VERTEX,
+    };
+    VkVertexInputAttributeDescription vad{
+        .location=0,.binding=0,.format=VK_FORMAT_R32G32B32_SFLOAT,.offset=0,
+    };
+    VkPipelineVertexInputStateCreateInfo vi{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount=1,.pVertexBindingDescriptions=&vbd,
+        .vertexAttributeDescriptionCount=1,.pVertexAttributeDescriptions=&vad,
+    };
+    // POINT_LIST topology — each vertex is one point
+    VkPipelineInputAssemblyStateCreateInfo ia{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology=VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+    };
+    VkViewport vp{.x=0,.y=0,
+        .width=(float)r->swapchain_extent.width,.height=(float)r->swapchain_extent.height,
+        .minDepth=0,.maxDepth=1};
+    VkRect2D sc{{0,0},r->swapchain_extent};
+    VkPipelineViewportStateCreateInfo vs{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount=1,.pViewports=&vp,.scissorCount=1,.pScissors=&sc,
+    };
+    VkPipelineRasterizationStateCreateInfo rs{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .polygonMode=VK_POLYGON_MODE_FILL,.cullMode=VK_CULL_MODE_NONE,
+        .frontFace=VK_FRONT_FACE_CLOCKWISE,.lineWidth=1,
+    };
+    VkPipelineMultisampleStateCreateInfo ms{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .rasterizationSamples=VK_SAMPLE_COUNT_1_BIT,
+    };
+    // Depth test yes, depth write no — sparks don't occlude geometry
+    VkPipelineDepthStencilStateCreateInfo ds{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable=VK_TRUE,.depthWriteEnable=VK_FALSE,.depthCompareOp=VK_COMPARE_OP_LESS,
+    };
+    // Additive blending: src + dst — bright spark glow effect
+    VkPipelineColorBlendAttachmentState cba{
+        .blendEnable=VK_TRUE,
+        .srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor=VK_BLEND_FACTOR_ONE,          // additive
+        .colorBlendOp=VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor=VK_BLEND_FACTOR_ZERO,
+        .alphaBlendOp=VK_BLEND_OP_ADD,
+        .colorWriteMask=VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT|
+                        VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT,
+    };
+    VkPipelineColorBlendStateCreateInfo cbs{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .attachmentCount=1,.pAttachments=&cba,
+    };
+    VkPipelineRenderingCreateInfo pri{
+        .sType=VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .colorAttachmentCount=1,.pColorAttachmentFormats=&r->surface_format.format,
+        .depthAttachmentFormat=DEPTH_FORMAT,
+    };
+    VkPipelineShaderStageCreateInfo stages[2]={
+        {.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_VERTEX_BIT,  .module=vm,.pName="main"},
+        {.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_FRAGMENT_BIT,.module=fm,.pName="main"},
+    };
+    VkGraphicsPipelineCreateInfo gpi{
+        .sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext=&pri,.stageCount=2,.pStages=stages,
+        .pVertexInputState=&vi,.pInputAssemblyState=&ia,.pViewportState=&vs,
+        .pRasterizationState=&rs,.pMultisampleState=&ms,.pDepthStencilState=&ds,
+        .pColorBlendState=&cbs,.layout=m->pipeline_layout,
+    };
+    xz_log("vkCreateGraphicsPipelines (points)");
+    check_vk(vkCreateGraphicsPipelines(r->device,VK_NULL_HANDLE,1,&gpi,nullptr,&m->pipeline),"points pipeline");
+    vkDestroyShaderModule(r->device,vm,nullptr);
+    vkDestroyShaderModule(r->device,fm,nullptr);
 }
 
 // ============================================================
@@ -912,8 +986,9 @@ static glm::mat4 compute_model(const glm::vec3& p, const glm::vec3& r, const glm
 }
 
 static void record_scene(RendererImpl* r,
-    const std::vector<MeshObject*>& meshes,
-    const std::vector<CustomShaderQuad*>& quads)
+    const std::vector<MeshObject*>&            meshes,
+    const std::vector<CustomShaderQuad*>&      quads,
+    const std::vector<CustomShaderPoints3d*>&  points_clusters)
 {
     for (uint32_t i=0;i<r->image_count;i++){
         VkCommandBufferBeginInfo bi{.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
@@ -930,7 +1005,7 @@ static void record_scene(RendererImpl* r,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             0,0,nullptr,0,nullptr,1,&bar);
 
-        VkClearValue cv_col{}; 
+        VkClearValue cv_col{};
         memcpy(cv_col.color.float32, r->clear_color, sizeof(float)*4);
         VkClearValue cv_dep{}; cv_dep.depthStencil={1.0f,0};
 
@@ -969,8 +1044,8 @@ static void record_scene(RendererImpl* r,
                     vkCmdDrawIndexed(r->scene_cmds[i],sm.index_count,1,0,0,0);
                 }
             } else {
-                VkBuffer vb = m->smooth_vertex.buffer;
-                VkBuffer ib = m->smooth_index.buffer;
+                VkBuffer vb = m->mesh_vertex.buffer;
+                VkBuffer ib = m->mesh_index.buffer;
                 if (vb==VK_NULL_HANDLE) continue;
                 vkCmdBindVertexBuffers(r->scene_cmds[i],0,1,&vb,offsets);
                 vkCmdBindIndexBuffer(r->scene_cmds[i],ib,0,VK_INDEX_TYPE_UINT32);
@@ -988,6 +1063,19 @@ static void record_scene(RendererImpl* r,
             vkCmdBindDescriptorSets(r->scene_cmds[i],VK_PIPELINE_BIND_POINT_GRAPHICS,
                 m->pipeline_layout,0,1,&m->frames[i].descriptor_set,0,nullptr);
             vkCmdDrawIndexed(r->scene_cmds[i],m->index_count,1,0,0,0);
+        }
+
+        // Additive-blended point clusters (particles)
+        for (CustomShaderPoints3d* pc : points_clusters){
+            if (!pc->isVisible()) continue;
+            auto* m = pc->impl();
+            if (!m || m->alive_count == 0) continue;
+            vkCmdBindPipeline(r->scene_cmds[i],VK_PIPELINE_BIND_POINT_GRAPHICS,m->pipeline);
+            vkCmdBindVertexBuffers(r->scene_cmds[i],0,1,&m->vertex_buffer.buffer,offsets);
+            vkCmdBindDescriptorSets(r->scene_cmds[i],VK_PIPELINE_BIND_POINT_GRAPHICS,
+                m->pipeline_layout,0,1,&m->frames[i].descriptor_set,0,nullptr);
+            // vkCmdDraw — no index buffer, one point per vertex
+            vkCmdDraw(r->scene_cmds[i], m->alive_count, 1, 0, 0);
         }
 
         vkCmdEndRendering(r->scene_cmds[i]);
@@ -1031,29 +1119,20 @@ MeshObject::~MeshObject()
 
     vkDeviceWaitIdle(renderer_impl->device);
 
-    // GPU geometry buffers
-    destroy_buffer(renderer_impl->device, impl_->smooth_vertex);
-    destroy_buffer(renderer_impl->device, impl_->smooth_index);
-    destroy_buffer(renderer_impl->device, impl_->flat_vertex);
-    destroy_buffer(renderer_impl->device, impl_->flat_index);
-
-    // GLTF sub-meshes
+    destroy_buffer(renderer_impl->device, impl_->mesh_vertex);
+    destroy_buffer(renderer_impl->device, impl_->mesh_index);
     for (auto& sub_mesh : impl_->sub_meshes) {
         destroy_buffer(renderer_impl->device, sub_mesh.vertex_buffer);
         destroy_buffer(renderer_impl->device, sub_mesh.index_buffer);
     }
     impl_->sub_meshes.clear();
 
-    // Texture
     destroy_texture(renderer_impl->device, impl_->texture);
 
-    // Per-frame uniform buffers
-    for (auto& frame : impl_->frames) {
+    for (auto& frame : impl_->frames)
         destroy_buffer(renderer_impl->device, frame.buffer);
-    }
     impl_->frames.clear();
 
-    // Descriptor pool
     if (impl_->descriptor_pool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(renderer_impl->device, impl_->descriptor_pool, nullptr);
         impl_->descriptor_pool = VK_NULL_HANDLE;
@@ -1067,21 +1146,20 @@ void MeshObject::setRotation(const glm::vec3& r){rotation_=r;}
 void MeshObject::setScale(float u){scale_={u,u,u};}
 void MeshObject::setScale(float x,float y,float z){scale_={x,y,z};}
 void MeshObject::setScale(const glm::vec3& s){scale_=s;}
+
 const glm::vec3 MeshObject::getForward() const {
     glm::mat4 rotMatrix = glm::mat4(1.0f);
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.y), glm::vec3(0, 1, 0));
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.x), glm::vec3(1, 0, 0));
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.z), glm::vec3(0, 0, 1));
-
-    glm::vec3 forward = -glm::normalize(glm::vec3(rotMatrix[2]));
-    return forward;
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.y), glm::vec3(0,1,0));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.x), glm::vec3(1,0,0));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.z), glm::vec3(0,0,1));
+    return -glm::normalize(glm::vec3(rotMatrix[2]));
 }
+
 const glm::vec3 MeshObject::getRight() const {
     glm::mat4 rotMatrix = glm::mat4(1.0f);
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.y), glm::vec3(0, 1, 0));
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.x), glm::vec3(1, 0, 0));
-    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.z), glm::vec3(0, 0, 1));
-
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.y), glm::vec3(0,1,0));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.x), glm::vec3(1,0,0));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation_.z), glm::vec3(0,0,1));
     return glm::normalize(glm::vec3(rotMatrix[0]));
 }
 
@@ -1155,19 +1233,19 @@ void MeshObject::loadFromVertices(const std::vector<Vertex>&   vertices,
     VkDeviceSize vertex_buffer_size = vertices.size() * sizeof(Vertex);
     VkDeviceSize index_buffer_size  = indices.size()  * sizeof(uint32_t);
 
-    mesh_impl->smooth_vertex = make_buffer(
+    mesh_impl->mesh_vertex = make_buffer(
         renderer_impl->device, renderer_impl->physical_device,
         vertex_buffer_size,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    upload(renderer_impl->device, mesh_impl->smooth_vertex, vertices.data(), vertex_buffer_size);
+    upload(renderer_impl->device, mesh_impl->mesh_vertex, vertices.data(), vertex_buffer_size);
 
-    mesh_impl->smooth_index = make_buffer(
+    mesh_impl->mesh_index = make_buffer(
         renderer_impl->device, renderer_impl->physical_device,
         index_buffer_size,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    upload(renderer_impl->device, mesh_impl->smooth_index, indices.data(), index_buffer_size);
+    upload(renderer_impl->device, mesh_impl->mesh_index, indices.data(), index_buffer_size);
 
     alloc_mesh_frames(renderer_impl, mesh_impl);
 }
@@ -1207,9 +1285,33 @@ void CustomShaderQuad::setPosition(float x,float y,float z){position_={x,y,z};}
 void CustomShaderQuad::setPosition(const glm::vec3& p){position_=p;}
 void CustomShaderQuad::setRotation(float x,float y,float z){rotation_={x,y,z};}
 void CustomShaderQuad::setRotation(const glm::vec3& r){rotation_=r;}
-void CustomShaderQuad::setScale(float uniform_scale) { scale_ = {uniform_scale, uniform_scale, 1.0f}; }
+void CustomShaderQuad::setScale(float uniform_scale){scale_={uniform_scale,uniform_scale,1.0f};}
 void CustomShaderQuad::setScale(float x,float y,float z){scale_={x,y,z};}
 void CustomShaderQuad::setScale(const glm::vec3& s){scale_=s;}
+
+// ============================================================
+//  CustomShaderPoints3d
+// ============================================================
+CustomShaderPoints3d::CustomShaderPoints3d(const std::string& p) : frag_spv_path_(p) {}
+
+void CustomShaderPoints3d::setPositions(const std::vector<glm::vec3>& positions)
+{
+    CustomShaderPoints3dImpl* m = impl_.get();
+    if (!m) return;
+
+    uint32_t count = (uint32_t)std::min(positions.size(), (size_t)m->max_count);
+    m->alive_count = count;
+    positions_     = positions;
+
+    if (count == 0) return;
+
+    // Upload alive positions into the pre-allocated vertex buffer
+    VkDeviceSize upload_size = count * sizeof(glm::vec3);
+    void* mapped;
+    vkMapMemory(m->renderer->device, m->vertex_buffer.memory, 0, upload_size, 0, &mapped);
+    memcpy(mapped, positions.data(), upload_size);
+    vkUnmapMemory(m->renderer->device, m->vertex_buffer.memory);
+}
 
 // ============================================================
 //  ImGuiLayer
@@ -1243,20 +1345,20 @@ void ImGuiLayer::exposeCamera(const std::string& label) {
     if (ImGui::CollapsingHeader(label.c_str())) {
         glm::vec3 p = renderer_impl_->camera_pos;
         glm::vec3 t = renderer_impl_->camera_target;
-        if (ImGui::SliderFloat3((label + " Pos").c_str(),    &p.x, -20.0f, 20.0f))
+        if (ImGui::SliderFloat3((label+" Pos").c_str(),    &p.x,-20.0f,20.0f))
             renderer_impl_->camera_pos = p;
-        if (ImGui::SliderFloat3((label + " Target").c_str(), &t.x, -20.0f, 20.0f))
+        if (ImGui::SliderFloat3((label+" Target").c_str(), &t.x,-20.0f,20.0f))
             renderer_impl_->camera_target = t;
     }
 }
-bool ImGuiLayer::exposeButton(const std::string& label) {
+bool ImGuiLayer::exposeButton(const std::string& label){
     return ImGui::Button(label.c_str());
 }
-void ImGuiLayer::beginWindow(const std::string& t) {
+void ImGuiLayer::beginWindow(const std::string& t){
     ImGui::Begin(t.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 }
-void ImGuiLayer::endWindow()  { ImGui::End(); }
-void ImGuiLayer::separator()  { ImGui::Separator(); }
+void ImGuiLayer::endWindow() { ImGui::End(); }
+void ImGuiLayer::separator() { ImGui::Separator(); }
 void ImGuiLayer::text(const std::string& s){ImGui::Text("%s",s.c_str());}
 void ImGuiLayer::showFPS(){ImGui::Text("%.1f FPS",ImGui::GetIO().Framerate);}
 
@@ -1283,10 +1385,8 @@ Renderer::~Renderer(){
         if (m->descriptor_pool!=VK_NULL_HANDLE)
             vkDestroyDescriptorPool(m_impl->device,m->descriptor_pool,nullptr);
         destroy_texture(m_impl->device,m->texture);
-        destroy_buffer(m_impl->device,m->flat_vertex);
-        destroy_buffer(m_impl->device,m->flat_index);
-        destroy_buffer(m_impl->device,m->smooth_vertex);
-        destroy_buffer(m_impl->device,m->smooth_index);
+        destroy_buffer(m_impl->device,m->mesh_vertex);
+        destroy_buffer(m_impl->device,m->mesh_index);
         for (auto& sm:m->sub_meshes){
             destroy_buffer(m_impl->device,sm.vertex_buffer);
             destroy_buffer(m_impl->device,sm.index_buffer);
@@ -1303,6 +1403,17 @@ Renderer::~Renderer(){
         if (m->pipeline_layout!=VK_NULL_HANDLE) vkDestroyPipelineLayout(m_impl->device,m->pipeline_layout,nullptr);
         destroy_buffer(m_impl->device,m->vertex_buffer);
         destroy_buffer(m_impl->device,m->index_buffer);
+    }
+
+    // Points clusters
+    for (auto& pc : m_points_clusters) {
+        auto* m = pc->impl(); if (!m) continue;
+        for (auto& f : m->frames) destroy_buffer(m_impl->device, f.buffer);
+        if (m->descriptor_pool != VK_NULL_HANDLE) vkDestroyDescriptorPool(m_impl->device, m->descriptor_pool, nullptr);
+        if (m->desc_layout     != VK_NULL_HANDLE) vkDestroyDescriptorSetLayout(m_impl->device, m->desc_layout, nullptr);
+        if (m->pipeline        != VK_NULL_HANDLE) vkDestroyPipeline(m_impl->device, m->pipeline, nullptr);
+        if (m->pipeline_layout != VK_NULL_HANDLE) vkDestroyPipelineLayout(m_impl->device, m->pipeline_layout, nullptr);
+        destroy_buffer(m_impl->device, m->vertex_buffer);
     }
 
     ImGui_ImplVulkan_Shutdown();
@@ -1327,23 +1438,16 @@ Renderer::~Renderer(){
 }
 
 void Renderer::setClearColor(float r,float g,float b,float a){
-    m_impl->clear_color[0]=r;
-    m_impl->clear_color[1]=g;
-    m_impl->clear_color[2]=b;
-    m_impl->clear_color[3]=a;
+    m_impl->clear_color[0]=r; m_impl->clear_color[1]=g;
+    m_impl->clear_color[2]=b; m_impl->clear_color[3]=a;
 }
-void Renderer::setCameraPosition(float x,float y,float z){
-    m_impl->camera_pos={x,y,z};
-}
-void Renderer::setCameraTarget(float x, float y, float z) {
-    m_impl->camera_target = {x,y,z};;
-}
-void Renderer::enableLogging(bool e){m_logging_enabled=e; g_log=e;}
+void Renderer::setCameraPosition(float x,float y,float z){ m_impl->camera_pos={x,y,z}; }
+void Renderer::setCameraTarget(float x,float y,float z)  { m_impl->camera_target={x,y,z}; }
+void Renderer::enableLogging(bool e){ m_logging_enabled=e; g_log=e; }
 
-void Renderer::init(float guiSize = 1.5f){
+void Renderer::init(float guiSize){
     g_log=m_logging_enabled;
-
-    vulkan_init(m_impl.get(),m_window_width, m_window_height, m_window_title, m_impl->clear_color);
+    vulkan_init(m_impl.get(),m_window_width,m_window_height,m_window_title,m_impl->clear_color);
 
     VkDescriptorPoolSize ps[]={
         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE},
@@ -1359,11 +1463,8 @@ void Renderer::init(float guiSize = 1.5f){
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-
-    ImGui::GetIO().FontGlobalScale = guiSize;  // increase font size
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(guiSize);              // increase all widget sizes
-
+    ImGui::GetIO().FontGlobalScale = guiSize;
+    ImGui::GetStyle().ScaleAllSizes(guiSize);
     ImGui::StyleColorsDark();
     ImGui_ImplSDL3_InitForVulkan(m_impl->window);
 
@@ -1380,7 +1481,6 @@ void Renderer::init(float guiSize = 1.5f){
         .colorAttachmentCount=1,.pColorAttachmentFormats=&m_impl->surface_format.format,
     };
     ImGui_ImplVulkan_Init(&iv);
-
     m_gui->renderer_impl_=m_impl.get();
 }
 
@@ -1404,21 +1504,17 @@ MeshObject& Renderer::createMeshObject(const std::string& mesh_path,
     m_mesh_objects.push_back(std::move(mesh_object));
     return mesh_object_ref;
 }
+
 CustomShaderQuad& Renderer::createCustomShaderQuad(const std::string& frag_spv_path)
 {
-    // Generic unit quad
     const std::vector<glm::vec3> positions = {
-    {-0.5f, -0.5f, 0.0f},  // bottom-left
-    { 0.5f, -0.5f, 0.0f},  // bottom-right
-    { 0.5f,  0.5f, 0.0f},  // top-right
-    {-0.5f,  0.5f, 0.0f},  // top-left
+        {-0.5f,-0.5f,0.0f},{0.5f,-0.5f,0.0f},{0.5f,0.5f,0.0f},{-0.5f,0.5f,0.0f},
     };
-    const std::vector<glm::vec2> uvs = {
-        {0,0},{1,0},{1,1},{0,1}
-    };
-    const std::vector<uint32_t> indices = {0,1,2, 0,2,3};
+    const std::vector<glm::vec2> uvs     = {{0,0},{1,0},{1,1},{0,1}};
+    const std::vector<uint32_t>  indices = {0,1,2,0,2,3};
 
-    std::unique_ptr<CustomShaderQuad> custom_shader_quad = std::make_unique<CustomShaderQuad>(frag_spv_path);
+    std::unique_ptr<CustomShaderQuad> custom_shader_quad =
+        std::make_unique<CustomShaderQuad>(frag_spv_path);
     custom_shader_quad->impl_ = std::make_unique<CustomShaderQuadImpl>();
     custom_shader_quad->impl_->renderer = m_impl.get();
     build_quad_pipeline(m_impl.get(), custom_shader_quad->impl_.get(), frag_spv_path);
@@ -1426,6 +1522,28 @@ CustomShaderQuad& Renderer::createCustomShaderQuad(const std::string& frag_spv_p
     CustomShaderQuad& custom_shader_quad_ref = *custom_shader_quad;
     m_quads.push_back(std::move(custom_shader_quad));
     return custom_shader_quad_ref;
+}
+
+CustomShaderPoints3d& Renderer::createCustomShaderPoints3d(
+    const std::string& frag_spv_path, uint32_t max_points)
+{
+    std::unique_ptr<CustomShaderPoints3d> points_cluster =
+        std::make_unique<CustomShaderPoints3d>(frag_spv_path);
+    points_cluster->impl_ = std::make_unique<CustomShaderPoints3dImpl>();
+    points_cluster->impl_->renderer  = m_impl.get();
+    points_cluster->impl_->max_count = max_points;
+
+    points_cluster->impl_->vertex_buffer = make_buffer(
+        m_impl->device, m_impl->physical_device,
+        max_points * sizeof(glm::vec3),
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    build_points_pipeline(m_impl.get(), points_cluster->impl_.get(), frag_spv_path);
+
+    CustomShaderPoints3d& points_cluster_ref = *points_cluster;
+    m_points_clusters.push_back(std::move(points_cluster));
+    return points_cluster_ref;
 }
 
 PointLight& Renderer::createPointLight(){
@@ -1438,26 +1556,22 @@ ImGuiLayer& Renderer::getGui(){ return *m_gui; }
 bool Renderer::handleEvent(void* sdl_event) {
     SDL_Event* e = static_cast<SDL_Event*>(sdl_event);
     ImGui_ImplSDL3_ProcessEvent(e);
-    if (e->type == SDL_EVENT_QUIT) {
-        m_impl->should_close = true;
-        return true;
-    }
+    if (e->type == SDL_EVENT_QUIT) { m_impl->should_close = true; return true; }
     return false;
 }
 
 bool Renderer::beginFrame(){
-    if(m_impl->should_close) return false;
+    if (m_impl->should_close) return false;
 
     vkWaitForFences(m_impl->device,1,&m_impl->in_flight_fence,VK_TRUE,UINT64_MAX);
     vkResetFences(m_impl->device,1,&m_impl->in_flight_fence);
     check_vk(vkAcquireNextImageKHR(m_impl->device,m_impl->swapchain,UINT64_MAX,
         m_impl->image_available_sems[m_impl->current_frame],VK_NULL_HANDLE,&m_impl->current_image),"acquire");
 
-    uint32_t idx=m_impl->current_image;
+    uint32_t idx = m_impl->current_image;
 
-    // Build view + proj
-    glm::mat4 view=glm::lookAt(m_impl->camera_pos,m_impl->camera_target,glm::vec3(0,1,0));
-    glm::mat4 proj=glm::perspective(glm::radians(45.0f),
+    glm::mat4 view = glm::lookAt(m_impl->camera_pos,m_impl->camera_target,glm::vec3(0,1,0));
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f),
         (float)m_impl->swapchain_extent.width/(float)m_impl->swapchain_extent.height,
         0.1f,100.0f);
     proj[1][1]*=-1;
@@ -1466,7 +1580,6 @@ bool Renderer::beginFrame(){
     if (!m_lights.empty()) lp=glm::vec4(m_lights[0]->getPosition(),1.0f);
     glm::vec4 cp=glm::vec4(m_impl->camera_pos,1.0f);
 
-    // Update mesh UBOs
     for (auto& obj:m_mesh_objects){
         auto* m=obj->impl(); if(!m||m->frames.empty()) continue;
         glm::mat4 mdl=compute_model(obj->getPosition(),obj->getRotation(),obj->getScale());
@@ -1474,7 +1587,6 @@ bool Renderer::beginFrame(){
         memcpy(m->frames[idx].mapped,&u,sizeof(u));
     }
 
-    // Update quad UBOs
     for (auto& q:m_quads){
         auto* m=q->impl(); if(!m||m->frames.empty()) continue;
         glm::mat4 mdl=compute_model(q->getPosition(),q->getRotation(),q->getScale());
@@ -1482,10 +1594,17 @@ bool Renderer::beginFrame(){
         memcpy(m->frames[idx].mapped,&u,sizeof(u));
     }
 
-    // Re-record scene command buffers (handles flat/smooth + clear color changes)
-    std::vector<MeshObject*> mptrs; for(auto& o:m_mesh_objects) mptrs.push_back(o.get());
-    std::vector<CustomShaderQuad*> qptrs; for(auto& q:m_quads) qptrs.push_back(q.get());
-    record_scene(m_impl.get(),mptrs,qptrs);
+    // Points: positions are already world-space, so mvp = proj * view only
+    for (auto& pc:m_points_clusters){
+        auto* m=pc->impl(); if(!m||m->frames.empty()) continue;
+        UniformData u{}; u.mvp=proj*view; u.model=glm::mat4(1.0f); u.light_pos=lp; u.cam_pos=cp;
+        memcpy(m->frames[idx].mapped,&u,sizeof(u));
+    }
+
+    std::vector<MeshObject*>           mptrs; for(auto& o:m_mesh_objects)    mptrs.push_back(o.get());
+    std::vector<CustomShaderQuad*>     qptrs; for(auto& q:m_quads)           qptrs.push_back(q.get());
+    std::vector<CustomShaderPoints3d*> pptrs; for(auto& p:m_points_clusters) pptrs.push_back(p.get());
+    record_scene(m_impl.get(), mptrs, qptrs, pptrs);
 
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -1493,11 +1612,10 @@ bool Renderer::beginFrame(){
     return true;
 }
 
-void Renderer::endFrame(){
+void Renderer::submitFrame(){
     ImGui::Render();
     uint32_t idx=m_impl->current_image;
 
-    // ImGui command buffer
     VkCommandBufferBeginInfo bi{
         .sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags=VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
@@ -1544,8 +1662,9 @@ void Renderer::endFrame(){
         .swapchainCount=1,.pSwapchains=&m_impl->swapchain,.pImageIndices=&m_impl->current_image,
     };
     vkQueuePresentKHR(m_impl->graphics_queue,&pi);
-
     m_impl->current_frame = (m_impl->current_frame + 1) % m_impl->image_count;
 }
+
+MeshObject& Renderer::createMeshObject(){ return createMeshObject({},{}, ""); }
 
 } // namespace XZRenderer
