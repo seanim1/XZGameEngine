@@ -202,8 +202,8 @@ public:
 
     // ---- Configuration (call BEFORE init()) ----
     void setClearColor(float r, float g, float b, float a = 1.0f);
-    void setCameraPosition(float x, float y, float z);
-    void setCameraTarget(float x, float y, float z);
+    void setCameraPosition(glm::vec3 pos_);
+    void setCameraTarget(glm::vec3 target_);
     void enableLogging(bool enable);
 
     // ---- Initialisation (call ONCE) ----

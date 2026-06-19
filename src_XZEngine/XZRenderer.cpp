@@ -1441,8 +1441,8 @@ void Renderer::setClearColor(float r,float g,float b,float a){
     m_impl->clear_color[0]=r; m_impl->clear_color[1]=g;
     m_impl->clear_color[2]=b; m_impl->clear_color[3]=a;
 }
-void Renderer::setCameraPosition(float x,float y,float z){ m_impl->camera_pos={x,y,z}; }
-void Renderer::setCameraTarget(float x,float y,float z)  { m_impl->camera_target={x,y,z}; }
+void Renderer::setCameraPosition(glm::vec3 pos_){ m_impl->camera_pos=pos_; }
+void Renderer::setCameraTarget(glm::vec3 target_)  { m_impl->camera_target=target_; }
 void Renderer::enableLogging(bool e){ m_logging_enabled=e; g_log=e; }
 
 void Renderer::init(float guiSize){
