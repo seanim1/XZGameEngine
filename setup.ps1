@@ -5,6 +5,16 @@ if (-Not (Get-Command cmake -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+# Install Vulkan SDK (includes glslangValidator)
+winget install KhronosGroup.VulkanSDK --accept-source-agreements --accept-package-agreements
+
+# Add Vulkan SDK bin to PATH for this session and permanently (User scope, no admin needed)
+$vulkanSdkBase = "C:\VulkanSDK"
+$vulkanBin = (Get-ChildItem $vulkanSdkBase | Sort-Object Name -Descending | Select-Object -First 1).FullName + "\Bin"
+$env:PATH += ";$vulkanBin"
+[System.Environment]::SetEnvironmentVariable("PATH", [System.Environment]::GetEnvironmentVariable("PATH", "User") + ";$vulkanBin", "User")
+Write-Host "Vulkan SDK bin added to PATH: $vulkanBin"
+
 if (-Not (Test-Path "C:\vcpkg")) {
     git clone https://github.com/microsoft/vcpkg C:\vcpkg
     & C:\vcpkg\bootstrap-vcpkg.bat
@@ -29,12 +39,12 @@ if (-Not (Test-Path "third_party\SDL3\build")) {
     Push-Location third_party\SDL3
     New-Item -ItemType Directory -Force -Path build | Out-Null
     Push-Location build
-    cmake .. -G "Visual Studio 17 2022" -A x64
+    cmake .. -G "Visual Studio 18 2026" -A x64
     cmake --build . --config Debug
     Pop-Location
     Pop-Location
 }
 
 $toolchain = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain"
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$toolchain"
 cmake --build build --config Debug
