@@ -33,7 +33,7 @@ rm -rf third_party
 
 ### Setup (run once)
 ---
-Download MSVC cpp build tools if you haven't [MSVC Compiler](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+Download MSVC cpp build tools if you haven't [MSVC Compiler](https://visualstudio.microsoft.com/visual-cpp-build-tools/) Open up the Visual Studio Installer then install C++ build tools
 
 In the Windows search bar, look for "x64 Native Tools Command Prompt for VS 2022"
 Verify compiler exists:

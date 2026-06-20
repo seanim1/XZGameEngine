@@ -11,7 +11,6 @@
 #include "XZAudio.hpp"
 #include <iostream>
 
-// Tetrahedron vertex data — flat-shaded normals baked in
 static const XZRenderer::Vertex tetra_vertices[] = {
     {{ 0.0f,  1.0f,  0.0f},    {0.5f, 0.0f}, {-0.8321f,  0.2773f,  0.4804f}},
     {{ 0.0f, -1.0f,  1.1547f}, {0.0f, 1.0f}, {-0.8321f,  0.2773f,  0.4804f}},
@@ -28,9 +27,6 @@ static const XZRenderer::Vertex tetra_vertices[] = {
 };
 static const uint32_t tetra_indices[] = { 0,1,2, 3,4,5, 6,7,8, 9,10,11 };
 
-// ============================================================
-//  App state
-// ============================================================
 struct App {
     XZRenderer::Renderer renderer;
 
@@ -38,7 +34,7 @@ struct App {
     XZRenderer::MeshObject*           enemyMesh   = nullptr;
     XZRenderer::MeshObject*           enemySword  = nullptr;
     XZRenderer::MeshObject*           playerSword = nullptr;
-    XZRenderer::CustomShaderQuad*     enemyFace  = nullptr;
+    XZRenderer::CustomShaderQuad*     enemyFace   = nullptr;
     XZRenderer::PointLight*           light       = nullptr;
     XZRenderer::CustomShaderPoints3d* sparks      = nullptr;
 
@@ -51,16 +47,14 @@ struct App {
 
     float post_effect_timer    = 0.0f;
     float post_effect_duration = 0.2f;
-    float time_scale       = 1.0f;
-    float slow_mo_timer    = 0.0f;
-    float slow_mo_duration = post_effect_duration;
-    float slow_mo_scale    = 0.2f;
-    App() : renderer(1920, 1080, "XZRenderer") {}
+    float time_scale           = 1.0f;
+    float slow_mo_timer        = 0.0f;
+    float slow_mo_duration     = 0.5f;
+    float slow_mo_scale        = 0.2f;
+
+    App() : renderer(720, 360, "XZRenderer") {}
 };
 
-// ============================================================
-//  GUI
-// ============================================================
 static void update_gui(XZRenderer::ImGuiLayer& gui, App& app)
 {
     gui.beginWindow("Scene");
@@ -82,9 +76,6 @@ static void update_gui(XZRenderer::ImGuiLayer& gui, App& app)
     gui.endWindow();
 }
 
-// ============================================================
-//  SDL3 app callbacks
-// ============================================================
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
     App* app = new App();
@@ -133,6 +124,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 
     app->renderer.setCameraPosition(app->camera.getPosition());
     app->renderer.setCameraTarget(app->camera.getTarget());
+
     app->parry_sound.init();
     app->parry_sound.setPCM(XZAudio::generate_parry_clash());
 
@@ -160,11 +152,18 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     App* app = static_cast<App*>(appstate);
     XZRenderer::Renderer& r = app->renderer;
 
-    // Delta time
-    static float last_time = 0.0f;
+    // Delta time — must come before frame cap
+    static float last_time = (float)SDL_GetTicks() / 1000.0f;
     float current_time = (float)SDL_GetTicks() / 1000.0f;
     float delta_time   = current_time - last_time;
     last_time          = current_time;
+    delta_time         = std::min(delta_time, 1.0f / 60.0f);
+
+    // Cap to 60fps
+    static float last_frame_time = 0.0f;
+    if (current_time - last_frame_time < 1.0f / 60.0f)
+        return SDL_APP_CONTINUE;
+    last_frame_time = current_time;
 
     // Slow motion
     if (app->slow_mo_timer > 0.0f) {
@@ -180,7 +179,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     r.setCameraPosition(app->camera.getPosition());
     r.setCameraTarget(app->camera.getTarget());
 
-    // Enemy AI — unscaled, always attacks at normal speed
+    // Enemy AI
     static float enemy_attack_timer = 0.0f;
     constexpr float enemy_attack_interval = 2.0f;
     enemy_attack_timer += scaled_delta;
@@ -189,7 +188,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         app->duel_play.setEnemyState(XZDuelPlay::EnemyState::AttackPrep);
     }
 
-    // Gameplay — scaled
+    // Gameplay
     app->duel_play.update(scaled_delta);
 
     switch (app->duel_play.getPlayerState()) {
@@ -197,13 +196,13 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Parrying);
         break;
     case XZDuelPlay::PlayerState::CounterAvailable:
-        app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
-        break;
     case XZDuelPlay::PlayerState::Block:
         app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Blocking);
         break;
     case XZDuelPlay::PlayerState::Idle:
         app->sword_anim.setState(XZDuelAnim::PlayerSwordState::Idle);
+        break;
+    default:
         break;
     }
 
@@ -217,9 +216,11 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     case XZDuelPlay::EnemyState::Idle:
         app->sword_anim.setState(XZDuelAnim::EnemySwordState::Idle);
         break;
+    default:
+        break;
     }
 
-    // Particles — scaled
+    // Particles
     app->particle_system.update(scaled_delta);
 
     if (app->duel_play.checkParry()) {
@@ -231,7 +232,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         app->renderer.setChromaticAberration(true, 0.008f);
         app->renderer.setRadialBlur(true, 0.215f, 10);
         app->post_effect_timer = 0.0f;
-        app->slow_mo_timer     = app->slow_mo_duration;  // trigger slow mo
+        app->slow_mo_timer     = app->slow_mo_duration;
     }
 
     std::vector<glm::vec3> particle_positions;
@@ -248,7 +249,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     if (app->particle_system.aliveCount() == 0)
         app->sparks->setVisible(false);
 
-    // Sword transforms — scaled
+    // Sword transforms
     XZDuelAnim::Transformation sword_transform;
 
     sword_transform = app->sword_anim.getEnemySwordTransformation(
