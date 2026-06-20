@@ -8,7 +8,7 @@
 #include "XZDuelPlay.hpp"
 #include "XZParticleSystem.hpp"
 #include "XZCamera.hpp"
-
+#include "XZAudio.hpp"
 #include <iostream>
 
 // Tetrahedron vertex data — flat-shaded normals baked in
@@ -46,6 +46,9 @@ struct App {
     XZDuelPlay::DuelPlay             duel_play;
     XZParticleSystem::ParticleSystem particle_system;
     XZCamera::Camera                 camera{{-2.6f, 3.8f, -8.0f}, {0.0f, 0.0f, 0.0f}};
+
+    XZAudio::Sound parry_sound;
+
     float post_effect_timer    = 0.0f;
     float post_effect_duration = 0.2f;
     float time_scale       = 1.0f;
@@ -130,6 +133,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 
     app->renderer.setCameraPosition(app->camera.getPosition());
     app->renderer.setCameraTarget(app->camera.getTarget());
+    app->parry_sound.init();
+    app->parry_sound.setPCM(XZAudio::generate_parry_clash());
 
     return SDL_APP_CONTINUE;
 }
@@ -219,6 +224,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 
     if (app->duel_play.checkParry()) {
         app->duel_play.onParry();
+        app->parry_sound.play();
         app->particle_system.emitSparks(app->enemySword->getPosition());
         app->sparks->setVisible(true);
         app->camera.triggerShake(app->post_effect_duration, 0.05f);

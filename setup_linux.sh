@@ -11,7 +11,8 @@ sudo apt-get install -y \
     vulkan-tools libvulkan-dev libvulkan1 \
     glslang-tools \
     libglm-dev \
-    libassimp-dev
+    libassimp-dev \
+    libasound2-dev
 
 if [ ! -d third_party/SDL3 ]; then
     mkdir -p third_party
