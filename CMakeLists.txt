@@ -4,7 +4,11 @@ project(SDL3HelloTriangle VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(SDL3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL3/build")
+# On Windows use vcpkg SDL3 (has Vulkan support), on other platforms use source-built
+if(NOT WIN32)
+    set(SDL3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SDL3/build")
+endif()
+
 find_package(SDL3 REQUIRED CONFIG)
 find_package(Vulkan REQUIRED)
 find_package(glm REQUIRED)
