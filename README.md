@@ -1,16 +1,21 @@
-# SDL3 Vulkan Hello Triangle - Multi-Platform
+# XZ Game Engine - Multi-Platform
 
-Cross-platform template using Vulkan and SDL3.
-**Tested:** Linux✅, Windows✅, macOS(M1+)✅, iOS✅
+Cross-platform game engine using Vulkan API, SDL3, ImGUI
 
-## Linux & macOS(M1+)
+**Tested:** Linux✅, Windows, macOS(M1+)✅, iOS
+<div class="row">
+    <img src="README_images/README.png?raw=true" width="400">
+    <img src="README_images/README1.png?raw=true" width="400">
+    <img src="README_images/README_arch.png?raw=true" width="800">
+</div>
 
-### Linux Setup (run once)
+## Linux (Ubuntu) & macOS(M1+)
+### Linux (Ubuntu) Setup (run once)
 ```bash
 chmod +x setup_linux.sh
 ./setup_linux.sh
 ```
-### macOS Setup (run once)
+### macOS(M1+) Setup (run once)
 ```bash
 chmod +x setup_macos.sh
 ./setup_macos.sh

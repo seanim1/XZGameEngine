@@ -9,8 +9,8 @@ digraph call_graph {
     subgraph cluster_App {
         label="Your App"
         style=filled
-        fillcolor="#f5f0ff"
-        MyApp    [label="MyApp", shape=box, fillcolor="#d5bdfc"]
+        fillcolor="#f0fff2"
+        MyApp    [label="MyApp", shape=box, fillcolor="#bdfccd"]
     }
     subgraph cluster_Gameplay {
         label="Gameplay"
@@ -40,6 +40,8 @@ digraph call_graph {
     DuelPlay -> SwordAnim [label="Player State\nEnemy State"];
     DuelPlay -> CharAnim [label="Player State\nEnemy State"];
     DuelPlay -> ParticleSystem [label="Parry Status?"];
+    SwordAnim -> Audio [label=""];
+    CharAnim -> Audio [label=""];
     DuelPlay -> Audio [label="Parry Status?"];
     SwordAnim -> Renderer [label="Sword Transformation"];
     CharAnim -> Renderer [label="Char Transformation"];
