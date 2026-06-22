@@ -9,8 +9,8 @@ Cross-platform game engine using Vulkan API, SDL3, ImGUI
     <img src="README_images/README_arch.png?raw=true" width="800">
 </div>
 
-## Linux (Ubuntu) & macOS(M1+)
-### Linux (Ubuntu) Setup (run once)
+## Linux (Debian) & macOS(M1+)
+### Linux (Debian) Setup (run once)
 ```bash
 chmod +x setup_linux.sh
 ./setup_linux.sh
